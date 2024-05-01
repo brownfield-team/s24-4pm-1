@@ -19,7 +19,6 @@ on:
 
 env:
   GH_TOKEN: ${{ github.token }}
-  CHANNEL_NUMBER:
 
 permissions:
   contents: write
@@ -133,7 +132,7 @@ jobs:
   # Also consider pulling the github usernames associated with the PR
   # and using a lookup table to convert those into slack names, and then
   # send customized DMs to the users directly.
-  #test1
+  #test
 
   if_merged:
     needs: [get-pr-num, get-channel-number]
