@@ -69,14 +69,20 @@ jobs:
     needs: get-team-name
     runs-on: ubuntu-latest
     outputs:
-      channel_number: ${{ steps.read_file.outputs.channel_number }}
+      channel_number: ${{ steps.find_channel.outputs.channel_number }}
     steps:
-      - name: Read CHANNEL_NUMBER from file
-        id: read_file
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+      - name: Find Channel Number
+        id: find_channel
         run: |
-          CHANNEL_NUMBER=$(grep "^${{ steps.get-team-name.outputs.team }}=" ./.github/workflows/slack/teams.txt | cut -d'=' -f2)
+          echo "TEAM=${{ needs.get-team-name.outputs.team }}" >> $GITHUB_ENV
+          CHANNEL_NUMBER=$(python .github/workflows/slack/find_channel.py)
           echo "CHANNEL_NUMBER=${CHANNEL_NUMBER}" >> $GITHUB_ENV
-          echo "::set-env name=CHANNEL_NUMBER::${CHANNEL_NUMBER}"
           echo "::set-output name=channel_number::${CHANNEL_NUMBER}"
       - name: Debug - Print Channel Number
         run: |
