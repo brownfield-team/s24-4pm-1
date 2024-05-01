@@ -86,7 +86,7 @@ jobs:
           echo "::set-output name=channel_number::${CHANNEL_NUMBER}"
       - name: Debug - Print Channel Number
         run: |
-          echo "Channel Number: ${{ env.CHANNEL_NUMBER }}"
+          echo "Channel Number: ${{ steps.find_channel.outputs.channel_number }}"
 
   get-pr-num:
     name: Get PR Number
