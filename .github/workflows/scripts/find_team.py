@@ -1,4 +1,3 @@
-# find_team.py
 import os
 import re
 from datetime import datetime
@@ -14,6 +13,10 @@ match = re.search(pattern, repo_name)
 
 # Get the current time
 now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Check if the logs directory exists and create it if it doesn't
+if not os.path.exists("logs"):
+    os.makedirs("logs")
 
 # Open the log file
 with open(f"logs/{repo_name}_{now}.txt", "w") as f:
