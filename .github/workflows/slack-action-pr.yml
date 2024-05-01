@@ -60,6 +60,9 @@ jobs:
       - name: Run Python script to find team
         id: find_team
         run: echo "::set-output name=team::$(python .github/workflows/scripts/find_team.py)"
+      - name: Debug - Print Team Name
+        run: |
+          echo "Team Name: ${{ steps.find_team.outputs.team }}"
 
   get-channel-number:
     name: Get Channel Number
@@ -71,6 +74,9 @@ jobs:
         id: read_file
         run: |
           echo "CHANNEL_NUMBER=$(grep -oP "${{ steps.get-team-name.outputs.team }}=\K.*" ./.github/workflows/slack/teams.txt)" >> $GITHUB_ENV
+      - name: Debug - Print Channel Number
+        run: |
+          echo "Channel Number: ${{ env.CHANNEL_NUMBER }}"
 
   get-pr-num:
     name: Get PR Number
