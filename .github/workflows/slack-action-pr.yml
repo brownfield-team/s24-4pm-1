@@ -46,17 +46,31 @@ jobs:
           python -m pip install --upgrade pip
           # Install any other necessary packages here
 
+  get-team-name:
+    name: Get Team Name
+    runs-on: ubuntu-latest
+    outputs:
+      team: ${{ steps.get-team-name.outputs.team }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3.5.2
+        with:
+          fetch-depth: 1
+          token: ${{ github.token }}
       - name: Run Python script to find team
         id: find_team
         run: echo "::set-output name=team::$(python .github/workflows/scripts/find_team.py)"
 
+  get-channel-number:
+    name: Get Channel Number
+    runs-on: ubuntu-latest
+    outputs:
+      channel_number: ${{ steps.get-channel-number.outputs.channel_number }}
+    steps:
       - name: Read CHANNEL_NUMBER from file
         id: read_file
         run: |
-          echo "CHANNEL_NUMBER=$(grep -oP "${{ steps.find_team.outputs.team }}=\K.*" ./.github/workflows/slack/channel.txt)" >> $GITHUB_ENV
-
-      - name: Debug CHANNEL_NUMBER
-        run: echo "CHANNEL_NUMBER is ${{ env.CHANNEL_NUMBER }}"
+          echo "CHANNEL_NUMBER=$(grep -oP "${{ steps.get-team-name.outputs.team }}=\K.*" ./.github/workflows/slack/channel.txt)" >> $GITHUB_ENV
 
   get-pr-num:
     name: Get PR Number
