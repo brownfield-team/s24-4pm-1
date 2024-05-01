@@ -77,6 +77,9 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: "3.x"
+      - name: Debug - Print Team
+        run: |
+          echo "Team: ${{ needs.get-team-name.outputs.team }}"
       - name: Find Channel Number
         id: find_channel
         run: |
@@ -87,7 +90,6 @@ jobs:
       - name: Debug - Print Channel Number
         run: |
           echo "Channel Number: ${{ steps.find_channel.outputs.channel_number }}"
-
   get-pr-num:
     name: Get PR Number
     runs-on: ubuntu-latest
