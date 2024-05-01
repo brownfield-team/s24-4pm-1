@@ -50,7 +50,7 @@ jobs:
     name: Get Team Name
     runs-on: ubuntu-latest
     outputs:
-      team: ${{ steps.get-team-name.outputs.team }}
+      team: ${{ steps.find_team.outputs.team }} # Changed from 'get-team-name' to 'find_team'
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3.5.2
