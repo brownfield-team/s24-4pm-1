@@ -129,9 +129,7 @@ jobs:
           echo "branch_name=${BRANCH}"
           echo "branch_name=${BRANCH}" >> "$GITHUB_OUTPUT"
 
-  # TODO: from the ${{ github.repository }} name, extract the team number
-  # and use a lookup table to convert that into the channel number for the team.
-
+  # TODO:
   # Also consider pulling the github usernames associated with the PR
   # and using a lookup table to convert those into slack names, and then
   # send customized DMs to the users directly.
