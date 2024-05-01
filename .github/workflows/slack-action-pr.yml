@@ -69,12 +69,14 @@ jobs:
     needs: get-team-name
     runs-on: ubuntu-latest
     outputs:
-      channel_number: ${{ steps.get-channel-number.outputs.channel_number }}
+      channel_number: ${{ steps.read_file.outputs.channel_number }}
     steps:
       - name: Read CHANNEL_NUMBER from file
         id: read_file
         run: |
-          echo "CHANNEL_NUMBER=$(grep "^${{ steps.get-team-name.outputs.team }}=" ./.github/workflows/slack/teams.txt | cut -d'=' -f2)" >> $GITHUB_ENV
+          CHANNEL_NUMBER=$(grep "^${{ steps.get-team-name.outputs.team }}=" ./.github/workflows/slack/teams.txt | cut -d'=' -f2)
+          echo "CHANNEL_NUMBER=${CHANNEL_NUMBER}" >> $GITHUB_ENV
+          echo "::set-output name=channel_number::${CHANNEL_NUMBER}"
       - name: Debug - Print Channel Number
         run: |
           echo "Channel Number: ${{ env.CHANNEL_NUMBER }}"
@@ -119,7 +121,7 @@ jobs:
   # send customized DMs to the users directly.
 
   if_merged:
-    needs: get-pr-num
+    needs: [get-pr-num, get-channel-number]
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
@@ -138,7 +140,7 @@ jobs:
         run: echo "The result was ${{ steps.notify.outputs.slack-result }}"
 
   if_not_merged:
-    needs: get-pr-num
+    needs: [get-pr-num, get-channel-number]
     if: github.event.pull_request.merged != true
     runs-on: ubuntu-latest
     steps:
