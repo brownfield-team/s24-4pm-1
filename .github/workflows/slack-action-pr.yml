@@ -55,6 +55,9 @@ jobs:
         run: |
           echo "CHANNEL_NUMBER=$(grep -oP "${{ steps.find_team.outputs.team }}=\K.*" ./.github/workflows/slack/channel.txt)" >> $GITHUB_ENV
 
+      - name: Debug CHANNEL_NUMBER
+        run: echo "CHANNEL_NUMBER is ${{ env.CHANNEL_NUMBER }}"
+
   get-pr-num:
     name: Get PR Number
     runs-on: ubuntu-latest
