@@ -73,7 +73,7 @@ jobs:
       - name: Read CHANNEL_NUMBER from file
         id: read_file
         run: |
-          echo "CHANNEL_NUMBER=$(grep -oP "${{ steps.get-team-name.outputs.team }}=\K.*" ./.github/workflows/slack/teams.txt)" >> $GITHUB_ENV
+          echo "CHANNEL_NUMBER=$(grep "^${{ steps.get-team-name.outputs.team }}=" ./.github/workflows/slack/teams.txt | cut -d'=' -f2)" >> $GITHUB_ENV
       - name: Debug - Print Channel Number
         run: |
           echo "Channel Number: ${{ env.CHANNEL_NUMBER }}"
