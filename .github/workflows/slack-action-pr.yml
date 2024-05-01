@@ -81,7 +81,7 @@ jobs:
         id: find_channel
         run: |
           echo "TEAM=${{ needs.get-team-name.outputs.team }}" >> $GITHUB_ENV
-          CHANNEL_NUMBER=$(python .github/workflows/slack/find_channel.py)
+          CHANNEL_NUMBER=$(python .github/workflows/scripts/find_channel.py)
           echo "CHANNEL_NUMBER=${CHANNEL_NUMBER}" >> $GITHUB_ENV
           echo "::set-output name=channel_number::${CHANNEL_NUMBER}"
       - name: Debug - Print Channel Number
