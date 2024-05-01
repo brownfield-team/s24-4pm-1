@@ -150,7 +150,7 @@ jobs:
         id: notify
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ env.CHANNEL_NUMBER }}
+          slack-channel: ${{ needs.get-channel-number.outputs.channel_number }}
           slack-text: "Hello! PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.  INSERT HERE: the action you want the student to take now."
       - name: Result from "Send Message"
         run: echo "The result was ${{ steps.notify.outputs.slack-result }}"
