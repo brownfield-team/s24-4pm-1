@@ -52,7 +52,8 @@ jobs:
 
       - name: Read CHANNEL_NUMBER from file
         id: read_file
-        run: echo "::set-env name=CHANNEL_NUMBER::$(grep -oP "${{ steps.find_team.outputs.team }}=\K.*" ./.github/workflows/slack/channel.txt)"
+        run: |
+          echo "CHANNEL_NUMBER=$(grep -oP "${{ steps.find_team.outputs.team }}=\K.*" ./.github/workflows/slack/channel.txt)" >> $GITHUB_ENV
 
   get-pr-num:
     name: Get PR Number
