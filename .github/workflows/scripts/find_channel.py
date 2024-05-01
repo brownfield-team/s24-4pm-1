@@ -2,7 +2,7 @@
 import os
 
 def find_channel(team):
-    with open('.github/workflows/slack/teams.txt', 'r') as f:
+    with open('.github/workflows/scripts/teams.txt', 'r') as f:
         for line in f:
             team_name, channel_number = line.strip().split(':')
             if team_name == team:
