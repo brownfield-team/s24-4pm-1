@@ -10,4 +10,4 @@ def find_channel(team):
 
 team = os.getenv("TEAM")
 channel_number = find_channel(team)
-print(f"Channel number for team {team}: {channel_number}")
+print(channel_number)
