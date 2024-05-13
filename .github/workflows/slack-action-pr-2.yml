@@ -19,7 +19,7 @@ on:
 
 env:
   GH_TOKEN: ${{ github.token }}
-  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"ABCDEFG\", \"s24-4pm-2\": \"GFSDFKJSDF\" }"
+  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"TBD\" }"
   TEAM: ${{github.repository}}
   
 permissions:
