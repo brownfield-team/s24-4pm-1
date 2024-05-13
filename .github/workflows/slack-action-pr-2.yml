@@ -20,6 +20,7 @@ on:
 env:
   GH_TOKEN: ${{ github.token }}
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"ABCDEFG\", \"s24-4pm-2\": \"GFSDFKJSDF\" }"
+  TEAM: ${{github.repository}}
   
 permissions:
   contents: write
@@ -36,30 +37,19 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
 
-      - name: setup python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9" # install the python version needed
-
-      - name: install python packages
-        run: |
-          python -m pip install --upgrade pip
-          # Install any other necessary packages here
-
   get-team-name:
     name: Get Team Name
     runs-on: ubuntu-latest
     outputs:
       team: ${{ steps.find_team.outputs.team }} # Changed from 'get-team-name' to 'find_team'
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3.5.2
-        with:
-          fetch-depth: 1
-          token: ${{ github.token }}
-      - name: Run Python script to find team
+      - name: Use bash to extract team name (final nine chars of repo name)
         id: find_team
-        run: echo "::set-output name=team::$(python .github/workflows/scripts/find_team.py)"
+        run: |
+          REPO=${{ github.repository }}
+          TEAM_NAME="${REPO: -9}"
+          echo "Last nine characters: TEAM_NAME"
+          echo "::set-output name=team::${TEAM_NAME}"
       - name: Debug - Print Team Name
         run: |
           echo "Team Name: ${{ steps.find_team.outputs.team }}"
@@ -139,7 +129,7 @@ jobs:
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
           slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[ needs.get-team-name.outputs.team] }}
-          slack-text: "Hello! PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.  INSERT HERE: the action you want the student to take now."
+          slack-text: "Hello from alt... PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.  INSERT HERE: the action you want the student to take now."
       - name: Result from "Send Message"
         run: |
           echo "The result was:"
