@@ -19,7 +19,8 @@ on:
 
 env:
   GH_TOKEN: ${{ github.token }}
-
+  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"ABCDEFG\", \"s24-4pm-2\": \"GFSDFKJSDF\" }"
+  
 permissions:
   contents: write
   pages: write
@@ -63,39 +64,6 @@ jobs:
         run: |
           echo "Team Name: ${{ steps.find_team.outputs.team }}"
 
-  get-channel-number:
-    name: Get Channel Number
-    needs: get-team-name
-    runs-on: ubuntu-latest
-    outputs:
-      channel_number: ${{ steps.find_channel.outputs.channel_number }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.x"
-      - name: Debug - Print Get Team Name Output
-        run: |
-          echo "Get Team Name Output: ${{ needs.get-team-name.outputs.team }}"
-      - name: Set Team Environment Variable
-        run: echo "TEAM=${{ needs.get-team-name.outputs.team }}" >> $GITHUB_ENV
-      - name: Debug - Print GitHub Env
-        run: cat $GITHUB_ENV
-      - name: Debug - Print Team
-        run: |
-          echo "Team: ${{ env.TEAM }}"
-      - name: Find Channel Number
-        id: find_channel
-        run: |
-          CHANNEL_NUMBER=$(python .github/workflows/scripts/find_channel.py)
-          echo "CHANNEL_NUMBER=${CHANNEL_NUMBER}" >> $GITHUB_ENV
-          echo "::set-output name=channel_number::${CHANNEL_NUMBER}"
-      - name: Debug - Print Channel Number
-        run: |
-          echo "Channel Number: ${{ steps.find_channel.outputs.channel_number }}"
-
   get-pr-num:
     name: Get PR Number
     runs-on: ubuntu-latest
@@ -136,7 +104,7 @@ jobs:
   # send customized DMs to the users directly.
 
   if_merged:
-    needs: [get-pr-num, get-channel-number]
+    needs: [get-pr-num, get-team-name]
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
@@ -149,7 +117,7 @@ jobs:
         id: notify
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ needs.get-channel-number.outputs.channel_number }}
+          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[ needs.get-team-name.outputs.team] }}
           slack-text: "Hello! PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.  INSERT HERE: the action you want the student to take now."
       - name: Result from "Send Message"
         run: |
@@ -157,7 +125,7 @@ jobs:
           echo '${{ steps.notify.outputs.slack-result }}' | jq
 
   if_not_merged:
-    needs: [get-pr-num, get-channel-number]
+    needs: [get-pr-num, get-team-name]
     if: github.event.pull_request.merged != true
     runs-on: ubuntu-latest
     steps:
@@ -170,7 +138,7 @@ jobs:
         id: notify
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ needs.get-channel-number.outputs.channel_number }}
+          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[ needs.get-team-name.outputs.team] }}
           slack-text: "Hello! PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.  INSERT HERE: the action you want the student to take now."
       - name: Result from "Send Message"
         run: |
