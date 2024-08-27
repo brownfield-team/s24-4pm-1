@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 env:
-  GH_TOKEN: ${{ github.token }}
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use secrets to pass sensitive information
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
   TEAM: ${{ github.repository }}
 
@@ -22,7 +22,7 @@ jobs:
         run: |
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
-          echo "::set-output name=team::${TEAM_NAME}}"
+          echo "::set-output name=team::${TEAM_NAME}"
 
   report:
     needs: get-team-name
@@ -30,7 +30,6 @@ jobs:
     outputs:
       commits_output: ${{ steps.prepare_commit_output.outputs.commits_output }}
       prs_output: ${{ steps.prepare_pr_output.outputs.prs_output }}
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -63,18 +62,17 @@ jobs:
       id: prepare_commit_output
       run: |
         COMMIT_OUTPUT=$(cat commits_by_author.txt)
-        echo "::set-output name=commits_output::$(echo \"$COMMIT_OUTPUT\")"
+        echo "::set-output name=commits_output::${COMMIT_OUTPUT}"
 
     - name: Prepare PR Output
       id: prepare_pr_output
       run: |
         PR_OUTPUT=$(cat merged_prs_by_author.txt)
-        echo "::set-output name=prs_output::$(echo \"$PR_OUTPUT\")"
+        echo "::set-output name=prs_output::${PR_OUTPUT}"
 
   send-report:
     needs: [get-team-name, report]
     runs-on: ubuntu-latest
-
     steps:
     - name: Send Report to Slack
       uses: archive/github-actions-slack@v2.0.0
