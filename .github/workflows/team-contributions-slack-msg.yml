@@ -28,18 +28,14 @@ jobs:
     - name: Count Commits on main by Author
       id: count_commits
       run: |
-        echo "Commits on main by author:"
         git log --use-mailmap --pretty=format:"%an" main | sort | uniq -c | sort -nr > commits_by_author.txt
         cat commits_by_author.txt
-      continue-on-error: true
 
     - name: Count Merged PRs to main by Author
       id: count_merged_prs
       run: |
-        echo "Merged PRs to main by author:"
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
-      continue-on-error: true
 
     - name: Get Team Name
       id: get_team
@@ -52,14 +48,14 @@ jobs:
     - name: Prepare Slack Message
       id: prepare_slack_msg
       run: |
-        commits_report=$(cat commits_by_author.txt)
-        prs_report=$(cat merged_prs_by_author.txt)
+        commits_report=$(cat commits_by_author.txt | sed 's/^/ /')
+        prs_report=$(cat merged_prs_by_author.txt | sed 's/^/ /')
         slack_msg=":bar_chart: *Daily Team Contributions Report* :bar_chart:\n*Commits on main by author:*\n\`\`\`${commits_report}\`\`\`\n*Merged PRs to main by author:*\n\`\`\`${prs_report}\`\`\`"
-        echo "slack-text=${slack_msg}" >> $GITHUB_ENV
+        echo "slack_text=${slack_msg}" >> $GITHUB_ENV
 
     - name: Send Report to Slack
       uses: archive/github-actions-slack@v2.0.0
       with:
         slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
         slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[steps.get_team.outputs.team] }}
-        slack-text: ${{ env.slack-text }}
+        slack-text: ${{ env.slack_text }}
