@@ -48,14 +48,19 @@ jobs:
     - name: Prepare Slack Message
       id: prepare_slack_msg
       run: |
-        commits_report=$(cat commits_by_author.txt | sed 's/^/ /')
-        prs_report=$(cat merged_prs_by_author.txt | sed 's/^/ /')
+        # Read the contents of the files into variables, ensuring no leading/trailing whitespace
+        commits_report=$(<commits_by_author.txt)
+        prs_report=$(<merged_prs_by_author.txt)
+        
+        # Construct the Slack message
         slack_msg=":bar_chart: *Daily Team Contributions Report* :bar_chart:\n*Commits on main by author:*\n\`\`\`${commits_report}\`\`\`\n*Merged PRs to main by author:*\n\`\`\`${prs_report}\`\`\`"
-        echo "slack_text=${slack_msg}" >> $GITHUB_ENV
+
+        # Save the message as an output for the next step
+        echo "::set-output name=slack_text::$slack_msg"
 
     - name: Send Report to Slack
       uses: archive/github-actions-slack@v2.0.0
       with:
         slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
         slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[steps.get_team.outputs.team] }}
-        slack-text: ${{ env.slack_text }}
+        slack-text: ${{ steps.prepare_slack_msg.outputs.slack_text }}
