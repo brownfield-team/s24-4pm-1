@@ -57,6 +57,8 @@ jobs:
       run: |
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
     - name: Prepare Commit Output
       id: prepare_commit_output
@@ -69,6 +71,14 @@ jobs:
       run: |
         PR_OUTPUT=$(cat merged_prs_by_author.txt)
         echo "::set-output name=prs_output::${PR_OUTPUT}"
+
+    - name: Debug Commit Output
+      run: |
+        echo "${{ steps.prepare_commit_output.outputs.commits_output }}"
+
+    - name: Debug PR Output
+      run: |
+        echo "${{ steps.prepare_pr_output.outputs.prs_output }}"
 
   send-report:
     needs: [get-team-name, report]
