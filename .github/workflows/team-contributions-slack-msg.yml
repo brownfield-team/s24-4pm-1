@@ -64,13 +64,13 @@ jobs:
       id: prepare_commit_output
       run: |
         COMMIT_OUTPUT=$(cat commits_by_author.txt)
-        echo "::set-output name=commits_output::$(echo \"$COMMIT_OUTPUT\")"
+        echo "::set-output name=commits_output::$(echo \"$COMMIT_OUTPUT\" | tr -d '\r')"
 
     - name: Prepare PR Output
       id: prepare_pr_output
       run: |
         PR_OUTPUT=$(cat merged_prs_by_author.txt)
-        echo "::set-output name=prs_output::$(echo \"$PR_OUTPUT\")"
+        echo "::set-output name=prs_output::$(echo \"$PR_OUTPUT\" | tr -d '\r')"
 
   send-report:
     needs: [get-team-name, report]
