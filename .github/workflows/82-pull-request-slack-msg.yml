@@ -19,7 +19,7 @@ on:
 
 env:
   GH_TOKEN: ${{ github.token }}
-  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
+  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", }"
   TEAM: ${{github.repository}}
   
 permissions:
@@ -86,13 +86,6 @@ jobs:
           echo "branch_name=${BRANCH}"
           echo "branch_name=${BRANCH}" >> "$GITHUB_OUTPUT"
 
-  #completed pulling team name and channel number
-
-  # TODO:
-  # Also consider pulling the github usernames associated with the PR
-  # and using a lookup table to convert those into slack names, and then
-  # send customized DMs to the users directly.
-
   if_merged:
     needs: [get-pr-num, get-team-name]
     if: github.event.pull_request.merged == true
@@ -108,7 +101,14 @@ jobs:
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
           slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[ needs.get-team-name.outputs.team] }}
-          slack-text: ""Hello from alt...! PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.  INSERT HERE: the action you want the student to take now."
+          slack-text: >
+                      Hello from reflection bot!\n
+                      PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.\n
+                      *Each team member that was involved in this PR (either coding or code review)*, please now write a brief reflection *in this thread* on what you as an individual, or your team, learned from this PR, if anything.\n
+                      Note that your team will be graded on two aspects: (1) the percentage of prompts like this one to which your team responds, (2) the quality of your responses.\n\n
+                      Example reflection on PR (See this example PR for details https://github.com/ucsb-cs156-s24/STARTER-team03/pull/16):\n
+                      -_The main takeaway from this PR is that having copies of the exact same code across multiple files, is not the ideal way to have a cohesive and concise program. And so in this PR, I factored out all of the common code from the two test files `ITOauth.java` and `ITRestaurant.java` into a parent class `WebTestCase.java` so that the two test files would not share almost 50 lines of identical code. But one of my main reflections, looking back on the PR, is... is it really the best idea to factor out everything? or does it sometimes make sense to leave some stuff in to increase the context available to someone who is reading the file for the first time._\n
+                      -_My thought is that it depends on the case, but in this case I am torn whether it was the right decision to factor out everything. From a number of lines perspective, this is ideal. But considering that this code is what some students will be looking at for their first time seeing an integration/end-to-end test, it might be harder to understand how it works when separated into parent and child classes._\n
       - name: Result from "Send Message"
         run: |
           echo "The result was:"
@@ -129,7 +129,14 @@ jobs:
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
           slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[ needs.get-team-name.outputs.team] }}
-          slack-text: "Hello from alt... PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was merged.  INSERT HERE: the action you want the student to take now."
+          slack-text: >
+                      Hello from reflection bot!\n
+                      PR https://github.com/${{github.repository}}/pull/${{needs.get-pr-num.outputs.pr_number}} was closed but not merged!\n
+                      *Each team member that was involved in this PR (either coding or code review)*, please now write a brief reflection *in this thread* on what you as an individual, or your team, learned from this PR, if anything.\n
+                      Note that your team will be graded on two aspects: (1) the percentage of prompts like this one to which your team responds, (2) the quality of your responses.\n\n
+                      Example reflection on PR (See this example PR for details https://github.com/ucsb-cs156-s24/STARTER-team03/pull/16):\n
+                      -_The main takeaway from this PR is that having copies of the exact same code across multiple files, is not the ideal way to have a cohesive and concise program. And so in this PR, I factored out all of the common code from the two test files `ITOauth.java` and `ITRestaurant.java` into a parent class `WebTestCase.java` so that the two test files would not share almost 50 lines of identical code. But one of my main reflections, looking back on the PR, is... is it really the best idea to factor out everything? or does it sometimes make sense to leave some stuff in to increase the context available to someone who is reading the file for the first time._\n
+                      -_My thought is that it depends on the case, but in this case I am torn whether it was the right decision to factor out everything. From a number of lines perspective, this is ideal. But considering that this code is what some students will be looking at for their first time seeing an integration/end-to-end test, it might be harder to understand how it works when separated into parent and child classes._\n
       - name: Result from "Send Message"
         run: |
           echo "The result was:"
