@@ -49,6 +49,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gh
+          gh auth setup-git
+          echo "${{ secrets.GH_TOKEN }}" | gh auth login --with-token
 
       - name: Count Merged PRs to main by Author
         id: count_merged_prs
@@ -68,7 +70,7 @@ jobs:
           SLACK_MSG="📊 *Daily Team Contributions Report* 📊\n*Commits on main by author:*\n\`\`\`${COMMITS_REPORT}\`\`\`\n*Merged PRs to main by author:*\n\`\`\`${PRS_REPORT}\`\`\`"
 
           # Save the message as an environment variable
-          printf "%s" "$SLACK_MSG" >> $GITHUB_ENV
+          echo "slack_text=${SLACK_MSG}" >> $GITHUB_ENV
 
       - name: Send Report to Slack
         uses: archive/github-actions-slack@v2.0.0
