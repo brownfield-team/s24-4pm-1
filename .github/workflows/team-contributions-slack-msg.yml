@@ -49,7 +49,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gh
-          gh auth setup-git
+
+      - name: Authenticate GitHub CLI
+        run: |
           echo "${{ secrets.GH_TOKEN }}" | gh auth login --with-token
 
       - name: Count Merged PRs to main by Author
