@@ -85,6 +85,6 @@ jobs:
         slack-text: |
           📊 *Daily Team Contributions Report* 📊
           *Commits on main by author:*
-          ```${{ needs.report.outputs.commits_output }}```
+          ```$${{ needs.report.outputs.commits_output }}```
           *Merged PRs to main by author:*
-          ```${{ needs.report.outputs.prs_output }}```
+          ```$${{ needs.report.outputs.prs_output }}```
