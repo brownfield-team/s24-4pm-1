@@ -7,11 +7,26 @@ on:
 
 env:
   GH_TOKEN: ${{ github.token }}
-  TEAM_TO_CHANNEL: ${{ vars.TEAM_TO_CHANNEL }}
+  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
   TEAM: ${{github.repository}}
 
 jobs:
+  get-team-name:
+    name: Get Team Name
+    runs-on: ubuntu-latest
+    outputs:
+      team: ${{ steps.find_team.outputs.team }}
+    steps:
+      - name: Use bash to extract team name (final nine chars of repo name)
+        id: find_team
+        run: |
+          REPO=${{ github.repository }}
+          TEAM_NAME="${REPO: -9}"
+          echo "Last nine characters: ${TEAM_NAME}"
+          echo "::set-output name=team::${TEAM_NAME}"
+
   report:
+    needs: get-team-name
     runs-on: ubuntu-latest
 
     steps:
@@ -44,19 +59,11 @@ jobs:
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
 
-    - name: Get Team Name
-      id: get_team
-      run: |
-        REPO=${{ github.repository }}
-        TEAM_NAME="${REPO##*/}"
-        echo "Team Name: ${TEAM_NAME}"
-        echo "::set-output name=team::${TEAM_NAME}"
-
     - name: Send Report to Slack
       uses: archive/github-actions-slack@v2.0.0
       with:
         slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-        slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[steps.get_team.outputs.team] }}
+        slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
         slack-text: |
           📊 *Daily Team Contributions Report* 📊
           *Commits on main by author:*
