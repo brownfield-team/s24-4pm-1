@@ -6,7 +6,6 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 env:
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
 
 jobs:
@@ -21,15 +20,15 @@ jobs:
         run: |
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
-          echo "Last nine characters: ${TEAM_NAME}"
+          echo "TEAM=${TEAM_NAME}" >> $GITHUB_ENV
           echo "::set-output name=team::${TEAM_NAME}"
-          
-  report:
+
+  get-commits:
+    name: Get Commits
     needs: get-team-name
     runs-on: ubuntu-latest
     outputs:
-      commits_output: ${{ steps.prepare_commit_output.outputs.commit_output }}
-      prs_output: ${{ steps.prepare_pr_output.outputs.pr_output }}
+      commits_output: ${{ steps.prepare_commit_output.outputs.commits_output }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -47,6 +46,19 @@ jobs:
           git log --use-mailmap --pretty=format:"%an" main | sort | uniq -c | sort -nr > commits_by_author.txt
           cat commits_by_author.txt
 
+      - name: Prepare Commit Output
+        id: prepare_commit_output
+        run: |
+          COMMIT_OUTPUT=$(cat commits_by_author.txt)
+          echo "::set-output name=commits_output::${COMMIT_OUTPUT}"
+
+  get-prs:
+    name: Get PRs
+    needs: get-team-name
+    runs-on: ubuntu-latest
+    outputs:
+      prs_output: ${{ steps.prepare_pr_output.outputs.prs_output }}
+    steps:
       - name: Install GitHub CLI
         run: |
           sudo apt-get update
@@ -62,28 +74,22 @@ jobs:
           gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
           cat merged_prs_by_author.txt
 
-      - name: Prepare Commit Output
-        id: prepare_commit_output
-        run: |
-          COMMIT_OUTPUT=$(cat commits_by_author.txt)
-          echo "::set-output name=commit_output::${COMMIT_OUTPUT}"
-
       - name: Prepare PR Output
         id: prepare_pr_output
         run: |
           PR_OUTPUT=$(cat merged_prs_by_author.txt)
-          echo "::set-output name=pr_output::${PR_OUTPUT}"
-          
+          echo "::set-output name=prs_output::${PR_OUTPUT}"
+
   send-report:
-    needs: [get-team-name, report]
+    needs: [get-team-name, get-commits, get-prs]
     runs-on: ubuntu-latest
     steps:
       - name: Debug Outputs
         run: |
           echo "Commits Output:"
-          echo "${{ needs.report.outputs.commits_output }}"
+          echo "${{ needs.get-commits.outputs.commits_output }}"
           echo "PR Output:"
-          echo "${{ needs.report.outputs.prs_output }}"
+          echo "${{ needs.get-prs.outputs.prs_output }}"
 
       - name: Send Report to Slack
         uses: archive/github-actions-slack@v2.0.0
@@ -94,9 +100,10 @@ jobs:
             📊 *Daily Team Contributions Report* 📊
             *Commits on main by author:*
             ```
-            ${{ needs.report.outputs.commits_output }}
+            ${{ needs.get-commits.outputs.commits_output }}
             ```
             *Merged PRs to main by author:*
             ```
-            ${{ needs.report.outputs.prs_output }}
+            ${{ needs.get-prs.outputs.prs_output }}
             ```
+
