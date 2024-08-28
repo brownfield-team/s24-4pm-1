@@ -8,7 +8,6 @@ on:
 env:
   GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Ensure GH_TOKEN is set as a secret
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
-  TEAM: ${{ github.repository }}
 
 jobs:
   get-team-name:
@@ -22,14 +21,12 @@ jobs:
         run: |
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
-          echo "Last nine characters: ${TEAM_NAME}"
           echo "TEAM=${TEAM_NAME}" >> $GITHUB_ENV
+          echo "::set-output name=team::${TEAM_NAME}"
 
   report:
     needs: get-team-name
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Ensure GH_TOKEN is set correctly
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -52,11 +49,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gh
 
+    - name: Authenticate GitHub CLI
+      run: |
+        echo "${GH_TOKEN}" | gh auth login --with-token
+
     - name: Count Merged PRs to main by Author
       id: count_merged_prs
       run: |
-        echo "Merged PRs to main by author:"
-        gh auth login --with-token <<< "${GH_TOKEN}"  # Authenticate gh CLI with token
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
 
@@ -64,17 +63,13 @@ jobs:
       id: prepare_commit_output
       run: |
         COMMIT_OUTPUT=$(cat commits_by_author.txt)
-        echo "COMMITS_OUTPUT<<EOF" >> $GITHUB_ENV
-        echo "$COMMIT_OUTPUT" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
+        echo "::set-output name=commits_output::$(echo "${COMMIT_OUTPUT}" | sed 's/"/\\"/g')"
 
     - name: Prepare PR Output
       id: prepare_pr_output
       run: |
         PR_OUTPUT=$(cat merged_prs_by_author.txt)
-        echo "PRS_OUTPUT<<EOF" >> $GITHUB_ENV
-        echo "$PR_OUTPUT" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
+        echo "::set-output name=prs_output::$(echo "${PR_OUTPUT}" | sed 's/"/\\"/g')"
 
   send-report:
     needs: [get-team-name, report]
@@ -84,14 +79,14 @@ jobs:
       uses: archive/github-actions-slack@v2.0.0
       with:
         slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-        slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[env.TEAM] }}
+        slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
         slack-text: |
           📊 *Daily Team Contributions Report* 📊
           *Commits on main by author:*
           ```
-          ${{ env.COMMITS_OUTPUT }}
+          ${{ needs.report.outputs.commits_output }}
           ```
           *Merged PRs to main by author:*
           ```
-          ${{ env.PRS_OUTPUT }}
+          ${{ needs.report.outputs.prs_output }}
           ```
