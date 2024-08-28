@@ -77,20 +77,15 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
           
-      - name: Count PRs by State and Author
+      - name: Count Merged PRs to main by Author
         id: count_prs
         run: |
-          # Count Merged PRs
-          gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
-          # Count Closed PRs
-          gh pr list --state closed --base main --json closedBy --jq '.[] | .closedBy.login' | sort | uniq -c | sort -nr > closed_prs_by_author.txt
-          # Count Open PRs
-          gh pr list --state open --base main --json author --jq '.[] | .author.login' | sort | uniq -c | sort -nr > open_prs_by_author.txt
-          # Concatenate results into one file
+          gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt || { echo 'Failed to count PRs'; exit 1; }
+          gh pr list --state closed --base main --json author --jq '.[] | .author.login' | sort | uniq -c | sort -nr > closed_prs_by_author.txt || { echo 'Failed to count PRs'; exit 1; }
+          gh pr list --state open --base main --json author --jq '.[] | .author.login' | sort | uniq -c | sort -nr > open_prs_by_author.txt || { echo 'Failed to count PRs'; exit 1; }
           awk '{printf "%s: %s, ", $2, $1}' merged_prs_by_author.txt > prs_by_author.txt
           awk '{printf "%s: %s, ", $2, $1}' closed_prs_by_author.txt >> prs_by_author.txt
           awk '{printf "%s: %s, ", $2, $1}' open_prs_by_author.txt >> prs_by_author.txt
-          # Clean up
           sed -i 's/, $//' prs_by_author.txt
           cat prs_by_author.txt
           
