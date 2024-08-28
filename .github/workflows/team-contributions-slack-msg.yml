@@ -78,6 +78,13 @@ jobs:
     needs: [get-team-name, report]
     runs-on: ubuntu-latest
     steps:
+    - name: Debug Outputs
+      run: |
+        echo "Commits Output:"
+        echo "${{ needs.report.outputs.commits_output }}"
+        echo "PR Output:"
+        echo "${{ needs.report.outputs.prs_output }}"
+
     - name: Send Report to Slack
       uses: archive/github-actions-slack@v2.0.0
       with:
@@ -93,3 +100,4 @@ jobs:
           ```
           ${{ needs.report.outputs.prs_output }}
           ```
+
