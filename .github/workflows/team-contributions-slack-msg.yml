@@ -84,7 +84,7 @@ jobs:
           gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt || { echo 'Failed to count merged PRs'; exit 1; }
 
           # Count Closed PRs that were not merged
-          gh pr list --state closedby --base main --json mergedBy,author --jq '.[] | select(.mergedBy == null) | .author.login' | sort | uniq -c | sort -nr > closed_prs_by_author.txt || { echo 'Failed to count closed PRs'; exit 1; }
+          gh pr list --state closed --base main --json mergedBy,author --jq '.[] | select(.mergedBy == null) | .author.login' | sort | uniq -c | sort -nr > closed_prs_by_author.txt || { echo 'Failed to count closed PRs'; exit 1; }
 
           # Count Open PRs
           gh pr list --state open --base main --json author --jq '.[] | .author.login' | sort | uniq -c | sort -nr > open_prs_by_author.txt || { echo 'Failed to count open PRs'; exit 1; }
