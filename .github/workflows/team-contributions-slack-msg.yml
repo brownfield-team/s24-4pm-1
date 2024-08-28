@@ -6,7 +6,6 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 env:
-  GH_TOKEN: ${{ secrets.GH_TOKEN }}
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
   TEAM: ${{ github.repository }}
 
@@ -23,11 +22,13 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "Last nine characters: ${TEAM_NAME}"
-          echo "team=${TEAM_NAME}" >> $GITHUB_ENV
+          echo "::set-output name=team::${TEAM_NAME}"
 
   report:
     needs: get-team-name
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -53,6 +54,7 @@ jobs:
     - name: Count Merged PRs to main by Author
       id: count_merged_prs
       run: |
+        echo "Merged PRs to main by author:"
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
 
@@ -98,4 +100,3 @@ jobs:
           ```
           ${{ env.prs_output }}
           ```
-
