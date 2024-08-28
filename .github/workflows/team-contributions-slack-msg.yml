@@ -55,6 +55,18 @@ jobs:
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
 
+        
+    - name: Prepare Commit Output
+      id: prepare_commit_output
+      run: |
+        COMMIT_OUTPUT=$(cat commits_by_author.txt)
+        echo "::set-output name=commits_output::${COMMIT_OUTPUT}"
+    - name: Prepare PR Output
+      id: prepare_pr_output
+      run: |
+        PR_OUTPUT=$(cat merged_prs_by_author.txt)
+        echo "::set-output name=prs_output::${PR_OUTPUT}"
+
   send-report:
     needs: [get-team-name, report]
     runs-on: ubuntu-latest
