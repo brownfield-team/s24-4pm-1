@@ -21,7 +21,7 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "::set-output name=team::${TEAM_NAME}"
-
+          
   count-commits:
     name: Count Commits by Author
     needs: get-team-name
@@ -38,19 +38,18 @@ jobs:
         run: |
           git checkout main
           git pull origin main
-
+          
       - name: Count Commits on main by Author
         id: count_commits
         run: |
           git log --use-mailmap --pretty=format:"%an" main | sort | uniq -c | sort -nr > commits_by_author.txt
           cat commits_by_author.txt
-
+          
       - name: Prepare Commit Output
         id: prepare_commit_output
         run: |
           COMMIT_OUTPUT=$(awk '{printf "%s: %s, ", $2, $1}' commits_by_author.txt | sed 's/, $//')
           echo "::set-output name=commits_output::${COMMIT_OUTPUT}"
-
   count-prs:
     name: Count PRs by Author
     needs: get-team-name
@@ -67,63 +66,28 @@ jobs:
         run: |
           git checkout main
           git pull origin main
-
+          
       - name: Install GitHub CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y gh
-
+          
       - name: Authenticate GitHub CLI
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
-      - name: Debug PR States
+          
+      - name: Count Merged PRs to main by Author
+        id: count_merged_prs
         run: |
-          echo "Fetching merged PRs..."
-          gh pr list --state merged --base main --json mergedBy --limit 1000 | jq '.[] | .mergedBy.login' || { echo 'Failed to fetch merged PRs'; exit 1; }
-
-          echo "Fetching closed PRs..."
-          gh pr list --state closed --base main --json mergedBy,author --limit 1000 | jq '.[] | select(.mergedBy == null) | .author.login' || { echo 'Failed to fetch closed PRs'; exit 1; }
-
-          echo "Fetching open PRs..."
-          gh pr list --state open --base main --json author --limit 1000 | jq '.[] | .author.login' || { echo 'Failed to fetch open PRs'; exit 1; }
-
-      - name: Count Merged PRs by Author
-        id: count_prs
-        run: |
-          gh pr list --state merged --base main --json mergedBy --limit 1000 --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt || { echo 'Failed to count merged PRs'; exit 1; }
+          gh pr list --state merged --base main --json mergedBy --limit 1000 --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt || { echo 'Failed to count PRs'; exit 1; }
           cat merged_prs_by_author.txt
-
-      - name: Count Closed PRs that were not Merged by Author
-        id: count_closed_prs
-        run: |
-          gh pr list --state closed --base main --json mergedBy,author --limit 1000 --jq '.[] | select(.mergedBy == null) | .author.login' | sort | uniq -c | sort -nr > closed_prs_by_author.txt || { echo 'Failed to count closed PRs'; exit 1; }
-          cat closed_prs_by_author.txt
 
       - name: Count Open PRs by Author
         id: count_open_prs
         run: |
           gh pr list --state open --base main --json author --limit 1000 --jq '.[] | .author.login' | sort | uniq -c | sort -nr > open_prs_by_author.txt || { echo 'Failed to count open PRs'; exit 1; }
           cat open_prs_by_author.txt
-
-      - name: Prepare PR Output
-        id: prepare_pr_output
-        run: |
-          awk '
-            FNR==NR {a[$2]=$1; next}
-            FNR==NR {b[$2]=$1; next}
-            FNR==NR {c[$2]=$1; next}
-            {
-              if ($2 in a) merged=a[$2]; else merged=0
-              if ($2 in b) closed=b[$2]; else closed=0
-              if ($2 in c) open=c[$2]; else open=0
-              printf "%s: merged: %d, closed: %d, open: %d | ", $2, merged, closed, open
-            }
-          ' merged_prs_by_author.txt closed_prs_by_author.txt open_prs_by_author.txt > prs_by_author.txt
-
-          sed -i 's/ | $//' prs_by_author.txt
-          PR_OUTPUT=$(cat prs_by_author.txt)
-          echo "::set-output name=prs_output::${PR_OUTPUT}"
+          
 
   send-report:
     needs: [get-team-name, count-commits, count-prs]
@@ -135,7 +99,7 @@ jobs:
           echo "${{ needs.count-commits.outputs.commits_output }}"
           echo "PR Output:"
           echo "${{ needs.count-prs.outputs.prs_output }}"
-
+          
       - name: Send Report to Slack
         uses: archive/github-actions-slack@v2.0.0
         with:
@@ -147,7 +111,11 @@ jobs:
             ```
             ${{ needs.count-commits.outputs.commits_output }}
             ```
-            *PR Counts by author:*
+            *Merged PRs to main by author:*
             ```
-            ${{ needs.count-prs.outputs.prs_output }}
+            ${{ needs.count-prs.outputs.merged_prs_output }}
+            ```
+            *Open PRs:*
+            ```
+            ${{ needs.count-prs.outputs.open_prs_output }}
             ```
