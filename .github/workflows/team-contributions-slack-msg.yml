@@ -6,9 +6,9 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 env:
-  GH_TOKEN: ${{ github.token }}
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use the correct token from secrets
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
-  TEAM: ${{github.repository}}
+  TEAM: ${{ github.repository }}
 
 jobs:
   get-team-name:
@@ -23,7 +23,8 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "Last nine characters: ${TEAM_NAME}"
-          echo "::set-output name=team::${TEAM_NAME}"
+          echo "team=${TEAM_NAME}" >> $GITHUB_ENV  # Updated to use GITHUB_ENV
+
   report:
     needs: get-team-name
     runs-on: ubuntu-latest
@@ -38,34 +39,27 @@ jobs:
       run: |
         git checkout main
         git pull origin main
+
     - name: Count Commits on main by Author
       id: count_commits
       run: |
         echo "Commits on main by author:"
         git log --use-mailmap --pretty=format:"%an" main | sort | uniq -c | sort -nr > commits_by_author.txt
         cat commits_by_author.txt
+        echo "commits_output=$(cat commits_by_author.txt)" >> $GITHUB_ENV
+
     - name: Install GitHub CLI
       run: |
         sudo apt-get update
         sudo apt-get install -y gh
+
     - name: Count Merged PRs to main by Author
       id: count_merged_prs
       run: |
         echo "Merged PRs to main by author:"
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
-
-        
-    - name: Prepare Commit Output
-      id: prepare_commit_output
-      run: |
-        COMMIT_OUTPUT=$(cat commits_by_author.txt)
-        echo "::set-output name=commits_output::${COMMIT_OUTPUT}"
-    - name: Prepare PR Output
-      id: prepare_pr_output
-      run: |
-        PR_OUTPUT=$(cat merged_prs_by_author.txt)
-        echo "::set-output name=prs_output::${PR_OUTPUT}"
+        echo "prs_output=$(cat merged_prs_by_author.txt)" >> $GITHUB_ENV
 
   send-report:
     needs: [get-team-name, report]
@@ -80,9 +74,9 @@ jobs:
           📊 *Daily Team Contributions Report* 📊
           *Commits on main by author:*
           ```
-          ${{ needs.report.outputs.commits_output }}
+          ${{ env.commits_output }}
           ```
           *Merged PRs to main by author:*
           ```
-          ${{ needs.report.outputs.prs_output }}
+          ${{ env.prs_output }}
           ```
