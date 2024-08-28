@@ -63,13 +63,17 @@ jobs:
       id: prepare_commit_output
       run: |
         COMMIT_OUTPUT=$(cat commits_by_author.txt)
-        echo "::set-output name=commits_output::$(echo "${COMMIT_OUTPUT}" | sed 's/"/\\"/g')"
+        echo "commits_output<<EOF" >> $GITHUB_ENV
+        echo "${COMMIT_OUTPUT}" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Prepare PR Output
       id: prepare_pr_output
       run: |
         PR_OUTPUT=$(cat merged_prs_by_author.txt)
-        echo "::set-output name=prs_output::$(echo "${PR_OUTPUT}" | sed 's/"/\\"/g')"
+        echo "prs_output<<EOF" >> $GITHUB_ENV
+        echo "${PR_OUTPUT}" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
 
   send-report:
     needs: [get-team-name, report]
@@ -90,3 +94,16 @@ jobs:
           ```
           ${{ needs.report.outputs.prs_output }}
           ```
+
+### Key Points:
+
+1. **GitHub Token for Authentication**:
+   - `gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}` authenticates the GitHub CLI using the token directly.
+
+2. **Correct Output Handling**:
+   - The `echo "commits_output<<EOF" >> $GITHUB_ENV` and `echo "prs_output<<EOF" >> $GITHUB_ENV` methods ensure that outputs are set correctly and avoid issues with special characters or formatting.
+
+3. **Secrets Configuration**:
+   - Verify that `GITHUB_TOKEN` and `SLACK_BOT_USER_OAUTH_ACCESS_TOKEN` are correctly configured in your repository settings.
+
+By ensuring proper token handling and output formatting, this workflow should avoid issues with one-time codes and correctly pass data between jobs.
