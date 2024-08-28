@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 env:
-  GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Ensure GH_TOKEN is set as a secret
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GH_TOKEN is set as a secret
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
 
     - name: Authenticate GitHub CLI
       run: |
-        echo "${GH_TOKEN}" | gh auth login --with-token
+        gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
 
     - name: Count Merged PRs to main by Author
       id: count_merged_prs
