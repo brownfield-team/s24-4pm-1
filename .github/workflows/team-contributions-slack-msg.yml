@@ -48,7 +48,7 @@ jobs:
       - name: Prepare Commit Output
         id: prepare_commit_output
         run: |
-          COMMIT_OUTPUT=$(cat commits_by_author.txt)
+          COMMIT_OUTPUT=$(awk '{printf "%s: %s, ", $2, $1}' commits_by_author.txt | sed 's/, $//')
           echo "::set-output name=commits_output::${COMMIT_OUTPUT}"
 
   count-prs:
@@ -86,7 +86,7 @@ jobs:
       - name: Prepare PR Output
         id: prepare_pr_output
         run: |
-          PR_OUTPUT=$(cat merged_prs_by_author.txt)
+          PR_OUTPUT=$(awk '{printf "%s: %s, ", $2, $1}' merged_prs_by_author.txt | sed 's/, $//')
           echo "::set-output name=prs_output::${PR_OUTPUT}"
 
   send-report:
