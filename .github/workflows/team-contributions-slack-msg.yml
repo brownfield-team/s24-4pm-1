@@ -77,7 +77,18 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
-      - name: Count Merged PRs to main by Author
+      - name: Debug PR States
+        run: |
+          echo "Fetching merged PRs..."
+          gh pr list --state merged --base main --json mergedBy --limit 1000 | jq '.[] | .mergedBy.login' || { echo 'Failed to fetch merged PRs'; exit 1; }
+
+          echo "Fetching closed PRs..."
+          gh pr list --state closed --base main --json mergedBy,author --limit 1000 | jq '.[] | select(.mergedBy == null) | .author.login' || { echo 'Failed to fetch closed PRs'; exit 1; }
+
+          echo "Fetching open PRs..."
+          gh pr list --state open --base main --json author --limit 1000 | jq '.[] | .author.login' || { echo 'Failed to fetch open PRs'; exit 1; }
+
+      - name: Count Merged PRs by Author
         id: count_prs
         run: |
           gh pr list --state merged --base main --json mergedBy --limit 1000 --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt || { echo 'Failed to count merged PRs'; exit 1; }
