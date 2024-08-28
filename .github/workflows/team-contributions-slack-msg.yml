@@ -22,7 +22,7 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "Last nine characters: ${TEAM_NAME}"
-          echo "team=${TEAM_NAME}" >> $GITHUB_ENV
+          echo "::set-output name=team::${TEAM_NAME}"
           
   report:
     needs: get-team-name
@@ -66,17 +66,13 @@ jobs:
         id: prepare_commit_output
         run: |
           COMMIT_OUTPUT=$(cat commits_by_author.txt)
-          echo "commit_output=${COMMIT_OUTPUT}" >> $GITHUB_ENV
-        outputs:
-          commit_output: ${{ steps.prepare_commit_output.outputs.commit_output }}
+          echo "::set-output name=commit_output::${COMMIT_OUTPUT}"
 
       - name: Prepare PR Output
         id: prepare_pr_output
         run: |
           PR_OUTPUT=$(cat merged_prs_by_author.txt)
-          echo "pr_output=${PR_OUTPUT}" >> $GITHUB_ENV
-        outputs:
-          pr_output: ${{ steps.prepare_pr_output.outputs.pr_output }}
+          echo "::set-output name=pr_output::${PR_OUTPUT}"
           
   send-report:
     needs: [get-team-name, report]
