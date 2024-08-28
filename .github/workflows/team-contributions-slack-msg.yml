@@ -51,6 +51,7 @@ jobs:
 
     - name: Authenticate GitHub CLI
       run: |
+        gh auth logout --confirm  # Logout if there were previous auth issues
         echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
 
     - name: Count Merged PRs to main by Author
