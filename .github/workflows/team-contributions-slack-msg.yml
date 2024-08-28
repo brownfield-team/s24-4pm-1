@@ -6,6 +6,7 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 env:
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Ensure GH_TOKEN is set as a secret
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
   TEAM: ${{ github.repository }}
 
@@ -22,13 +23,13 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "Last nine characters: ${TEAM_NAME}"
-          echo "::set-output name=team::${TEAM_NAME}"
+          echo "TEAM=${TEAM_NAME}" >> $GITHUB_ENV
 
   report:
     needs: get-team-name
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Ensure GH_TOKEN is set correctly
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -55,6 +56,7 @@ jobs:
       id: count_merged_prs
       run: |
         echo "Merged PRs to main by author:"
+        gh auth login --with-token <<< "${GH_TOKEN}"  # Authenticate gh CLI with token
         gh pr list --state merged --base main --json mergedBy --jq '.[] | .mergedBy.login' | sort | uniq -c | sort -nr > merged_prs_by_author.txt
         cat merged_prs_by_author.txt
 
@@ -62,7 +64,7 @@ jobs:
       id: prepare_commit_output
       run: |
         COMMIT_OUTPUT=$(cat commits_by_author.txt)
-        echo "commits_output<<EOF" >> $GITHUB_ENV
+        echo "COMMITS_OUTPUT<<EOF" >> $GITHUB_ENV
         echo "$COMMIT_OUTPUT" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
 
@@ -70,7 +72,7 @@ jobs:
       id: prepare_pr_output
       run: |
         PR_OUTPUT=$(cat merged_prs_by_author.txt)
-        echo "prs_output<<EOF" >> $GITHUB_ENV
+        echo "PRS_OUTPUT<<EOF" >> $GITHUB_ENV
         echo "$PR_OUTPUT" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
 
@@ -78,25 +80,18 @@ jobs:
     needs: [get-team-name, report]
     runs-on: ubuntu-latest
     steps:
-    - name: Debug outputs
-      run: |
-        echo "Commits Output:"
-        echo "${{ env.commits_output }}"
-        echo "PRs Output:"
-        echo "${{ env.prs_output }}"
-
     - name: Send Report to Slack
       uses: archive/github-actions-slack@v2.0.0
       with:
         slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-        slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[env.team] }}
+        slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[env.TEAM] }}
         slack-text: |
           📊 *Daily Team Contributions Report* 📊
           *Commits on main by author:*
           ```
-          ${{ env.commits_output }}
+          ${{ env.COMMITS_OUTPUT }}
           ```
           *Merged PRs to main by author:*
           ```
-          ${{ env.prs_output }}
+          ${{ env.PRS_OUTPUT }}
           ```
