@@ -19,26 +19,27 @@ jobs:
           TEAM: ${{ github.repository }}  # Repository name (e.g., owner/repo)
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
-          # Set the GitHub API URL for fetching projects
-          API_URL="https://api.github.com/orgs/${ORG_NAME}/projects"
+           # Set the GitHub API URL for fetching projects
+            API_URL="https://api.github.com/orgs/${ORG_NAME}/projects"
 
-          # Use curl to fetch projects with authorization
-          PROJECTS_JSON=$(curl -s -H "Authorization: token ${GH_TOKEN}" "${API_URL}")
+            # Use curl to fetch projects with authorization
+            PROJECTS_JSON=$(curl -s -H "Authorization: token ${GH_TOKEN}" "${API_URL}")
 
-          if [ $? -ne 0 ]; then
-            echo "Failed to fetch projects"
-            exit 1
-          fi
+            # Log the entire response for debugging
+            echo "Projects JSON Output: $PROJECTS_JSON"
 
-          echo "Projects JSON Output: $PROJECTS_JSON"
+            if [ $? -ne 0 ]; then
+                echo "Failed to fetch projects"
+                exit 1
+            fi
 
-          # Now use jq to find the project ID
-          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM}\")) | .id" | head -n 1)
+            # Now use jq to find the project ID
+            PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM}\")) | .id" | head -n 1)
 
-          if [ -z "$PROJECT_ID" ]; then
-            echo "No project found for team $TEAM."
-            exit 1
-          fi
+            if [ -z "$PROJECT_ID" ]; then
+                echo "No project found for team $TEAM."
+                exit 1
+            fi
 
-          echo "Found Project ID: $PROJECT_ID"
-          echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
+            echo "Found Project ID: $PROJECT_ID"
+            echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
