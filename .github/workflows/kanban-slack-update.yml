@@ -1,5 +1,4 @@
-name: "Team Contributions Report with Last Updated Project"
-
+name: "Kanban board slack update"
 on:
   schedule:
     - cron: '0 0 * * *'  # Runs daily at midnight UTC
