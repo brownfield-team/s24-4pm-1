@@ -6,12 +6,15 @@ jobs:
   find_project:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
       - name: Fetch Last Updated Project
         id: find_project
         env:
-          TEAM_NAME: ${{ needs.get-team-name.outputs.team }}
-          ORG_NAME: ${{ env.ORG_NAME }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the GitHub token from secrets
+          TEAM_NAME: ${{ needs.get-team-name.outputs.team }}  # Make sure this value is set correctly
+          ORG_NAME: ${{ secrets.ORG_NAME }}  # Now fetching from organization secrets
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Now fetching from organization secrets
         run: |
           # Clear existing authentication
           gh auth logout
