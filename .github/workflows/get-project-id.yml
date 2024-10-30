@@ -18,7 +18,7 @@ jobs:
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
           # Log in using the token without revealing it
-          echo "${GH_TOKEN}" | gh auth login --with-token --hostname github.com --quiet || { echo "Login failed"; exit 1; }
+          echo "${GH_TOKEN}" | gh auth login --with-token --hostname github.com || { echo "Login failed"; exit 1; }
 
           # Clear the token from the environment after login
           unset GH_TOKEN
