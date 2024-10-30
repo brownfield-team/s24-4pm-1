@@ -26,8 +26,11 @@ jobs:
           ORG_NAME: ${{ secrets.ORG_NAME }}  # Now fetching from organization secrets
           GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Now fetching from organization secrets
         run: |
+          # Clear the GH_TOKEN from environment to avoid conflicts
+          unset GH_TOKEN
+
           # Login using the token
-          echo "${GH_TOKEN}" | gh auth login --with-token || { echo "Login failed"; exit 1; }
+          echo -n "${GH_TOKEN}" | gh auth login --with-token || { echo "Login failed"; exit 1; }
 
           # Refresh token with read:project scope specifying the hostname
           gh auth refresh -s read:project -h github.com || { echo "Token refresh failed"; exit 1; }
