@@ -11,34 +11,32 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Clear Existing Authentication
-        run: gh auth logout || echo "No previous authentication to clear"
-
       - name: Fetch Last Updated Project
         id: find_project
         env:
-          TEAM_NAME: ${{ needs.get-team-name.outputs.team }}  # Ensure this value is set correctly
-          ORG_NAME: ${{ secrets.ORG_NAME }}  # Now fetching from organization secrets
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Now fetching from organization secrets
+          GH_TOKEN: ${{ github.token }}  # Use the automatically provided GitHub token
+          TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
+          TEAM: ${{ github.repository }}  # Repository name (e.g., owner/repo)
+          ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
-          # Login using the token without prompting
-          echo -n "${GH_TOKEN}" | gh auth login --with-token --hostname github.com || { echo "Login failed"; exit 1; }
+          # Set the GitHub API URL for fetching projects
+          API_URL="https://api.github.com/orgs/${ORG_NAME}/projects"
 
-          # Optionally unset GH_TOKEN here if necessary
-          unset GH_TOKEN
+          # Use curl to fetch projects with authorization
+          PROJECTS_JSON=$(curl -s -H "Authorization: token ${GH_TOKEN}" "${API_URL}")
 
-          # Refresh token with read:project scope specifying the hostname
-          gh auth refresh -s read:project -h github.com || { echo "Token refresh failed"; exit 1; }
+          if [ $? -ne 0 ]; then
+            echo "Failed to fetch projects"
+            exit 1
+          fi
 
-          # Get the list of projects and print the output for inspection
-          PROJECTS_JSON=$(gh project list --owner "$ORG_NAME" --format json) || { echo "Failed to fetch projects"; exit 1; }
           echo "Projects JSON Output: $PROJECTS_JSON"
-          
+
           # Now use jq to find the project ID
-          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM_NAME}\")) | .number" | head -n 1)
+          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM}\")) | .id" | head -n 1)
 
           if [ -z "$PROJECT_ID" ]; then
-            echo "No project found for team $TEAM_NAME."
+            echo "No project found for team $TEAM."
             exit 1
           fi
 
