@@ -1,8 +1,6 @@
-name: Fetch Last Updated Project
+name: Fetch Projects
 
-on: 
-  push:
-  workflow_dispatch:
+on: [push]
 
 jobs:
   find_project:
@@ -14,32 +12,33 @@ jobs:
       - name: Fetch Last Updated Project
         id: find_project
         env:
-          GH_TOKEN: ${{ github.token }}  # Use the automatically provided GitHub token
-          TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
-          TEAM: ${{ github.repository }}  # Repository name (e.g., owner/repo)
+          GH_TOKEN: ${{ secrets.ORG_GH_TOKEN }}  # Use the secret you created
+          TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DM\", \"s24-4pm-2\": \"C06592UPS91\" }"
+          TEAM: ${{ github.repository }}  # Adjust as needed
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
-           # Set the GitHub API URL for fetching projects
-            API_URL="https://api.github.com/orgs/${ORG_NAME}/projects"
+          # Log in using the token without revealing it
+          echo "${GH_TOKEN}" | gh auth login --with-token --hostname github.com --quiet || { echo "Login failed"; exit 1; }
 
-            # Use curl to fetch projects with authorization
-            PROJECTS_JSON=$(curl -s -H "Authorization: token ${GH_TOKEN}" "${API_URL}")
+          # Clear the token from the environment after login
+          unset GH_TOKEN
 
-            # Log the entire response for debugging
-            echo "Projects JSON Output: $PROJECTS_JSON"
+          # Now use the GitHub API to fetch projects
+          API_URL="https://api.github.com/orgs/${ORG_NAME}/projects"
+          PROJECTS_JSON=$(curl -s -H "Authorization: token ${GH_TOKEN}" "${API_URL}")
+          echo "Projects JSON Output: $PROJECTS_JSON"
 
-            if [ $? -ne 0 ]; then
-                echo "Failed to fetch projects"
-                exit 1
-            fi
+          if [ $? -ne 0 ]; then
+            echo "Failed to fetch projects"
+            exit 1
+          fi
 
-            # Now use jq to find the project ID
-            PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM}\")) | .id" | head -n 1)
+          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM}\")) | .id" | head -n 1)
 
-            if [ -z "$PROJECT_ID" ]; then
-                echo "No project found for team $TEAM."
-                exit 1
-            fi
+          if [ -z "$PROJECT_ID" ]; then
+            echo "No project found for team $TEAM."
+            exit 1
+          fi
 
-            echo "Found Project ID: $PROJECT_ID"
-            echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
+          echo "Found Project ID: $PROJECT_ID"
+          echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
