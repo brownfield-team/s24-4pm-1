@@ -11,11 +11,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Debug Environment Variables
-        run: |
-          echo "TEAM_NAME: ${{ needs.get-team-name.outputs.team }}"
-          echo "ORG_NAME: ${{ secrets.ORG_NAME }}"
-
       - name: Clear Existing Authentication
         run: gh auth logout || echo "No previous authentication to clear"
 
@@ -26,11 +21,11 @@ jobs:
           ORG_NAME: ${{ secrets.ORG_NAME }}  # Now fetching from organization secrets
           GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Now fetching from organization secrets
         run: |
-          # Clear the GH_TOKEN from environment to avoid conflicts
-          unset GH_TOKEN
+          # Login using the token without prompting
+          echo -n "${GH_TOKEN}" | gh auth login --with-token --hostname github.com || { echo "Login failed"; exit 1; }
 
-          # Login using the token
-          echo -n "${GH_TOKEN}" | gh auth login --with-token || { echo "Login failed"; exit 1; }
+          # Optionally unset GH_TOKEN here if necessary
+          unset GH_TOKEN
 
           # Refresh token with read:project scope specifying the hostname
           gh auth refresh -s read:project -h github.com || { echo "Token refresh failed"; exit 1; }
