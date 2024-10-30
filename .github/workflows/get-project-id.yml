@@ -13,7 +13,7 @@ jobs:
         id: find_project
         env:
           GH_TOKEN: ${{ secrets.ORG_GH_TOKEN }}  # Use your organization secret
-          TEAM: "s24-4pm-1"  # Specify your team name or adjust as needed
+          TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
           # Set the GitHub API URL for fetching projects
