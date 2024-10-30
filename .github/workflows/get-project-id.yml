@@ -1,4 +1,4 @@
-name: "Team Contributions Report with Last Updated Project"
+name: "configure project IDs"
 
 on:
   schedule:
@@ -25,37 +25,35 @@ jobs:
           TEAM_NAME="${REPO: -9}"
           echo "::set-output name=team::${TEAM_NAME}"
 
-          get-project-id:
-            name: Find Last Updated Project ID for Team
-            runs-on: ubuntu-latest
-            needs: get-team-name
-            outputs:
-              project_id: ${{ steps.find_project.outputs.project_id }}
-            steps:
-              - name: Install GitHub CLI
-                run: |
-                  sudo apt-get update
-                  sudo apt-get install -y gh jq
-        
-              - name: Fetch Last Updated Project
-                id: find_project
-                env:
-                  TEAM_NAME: ${{ needs.get-team-name.outputs.team }}
-                  ORG_NAME: ${{ env.ORG_NAME }}
-                run: |
-                  # Get the list of projects and print the output for inspection
-                  PROJECTS_JSON=$(gh project list --owner "$ORG_NAME" --format json)
-                  echo "Projects JSON Output: $PROJECTS_JSON"
-                  
-                  # Now use jq to find the project ID
-                  PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM_NAME}\")) | .number" | head -n 1)
-        
-                  if [ -z "$PROJECT_ID" ]; then
-                    echo "No project found for team $TEAM_NAME."
-                    exit 1
-                  fi
-        
-                  echo "Found Project ID: $PROJECT_ID"
-                  echo "::set-output name=project_id::$PROJECT_ID"
-        
- 
+  get-project-id:
+    name: Find Last Updated Project ID for Team
+    runs-on: ubuntu-latest
+    needs: get-team-name
+    outputs:
+      project_id: ${{ steps.find_project.outputs.project_id }}
+    steps:
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh jq
+      
+      - name: Fetch Last Updated Project
+        id: find_project
+        env:
+          TEAM_NAME: ${{ needs.get-team-name.outputs.team }}
+          ORG_NAME: ${{ env.ORG_NAME }}
+        run: |
+          # Get the list of projects and print the output for inspection
+          PROJECTS_JSON=$(gh project list --owner "$ORG_NAME" --format json)
+          echo "Projects JSON Output: $PROJECTS_JSON"
+          
+          # Now use jq to find the project ID
+          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM_NAME}\")) | .number" | head -n 1)
+
+          if [ -z "$PROJECT_ID" ]; then
+            echo "No project found for team $TEAM_NAME."
+            exit 1
+          fi
+
+          echo "Found Project ID: $PROJECT_ID"
+          echo "project_id=$PROJECT_ID" >> $GITHUB_ENV
