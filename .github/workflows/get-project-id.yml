@@ -1,4 +1,4 @@
-name: "get projects"
+name: "Team Contributions Report with Last Updated Project"
 
 on:
   schedule:
@@ -36,29 +36,31 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gh jq
-    
-      - name: Authenticate GitHub CLI
-        run: |
-          echo "${GH_TOKEN}" | gh auth login --with-token
-          gh auth refresh -s read:project  # Refresh with read:project scope
-    
+
       - name: Fetch Last Updated Project
         id: find_project
         env:
           TEAM_NAME: ${{ needs.get-team-name.outputs.team }}
           ORG_NAME: ${{ env.ORG_NAME }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the GitHub token from secrets
         run: |
+          # Export the token for the current session
+          export GH_TOKEN=${GH_TOKEN}
+
+          # Refresh token with read:project scope
+          gh auth refresh -s read:project
+
           # Get the list of projects and print the output for inspection
           PROJECTS_JSON=$(gh project list --owner "$ORG_NAME" --format json)
           echo "Projects JSON Output: $PROJECTS_JSON"
           
           # Now use jq to find the project ID
           PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM_NAME}\")) | .number" | head -n 1)
-    
+
           if [ -z "$PROJECT_ID" ]; then
             echo "No project found for team $TEAM_NAME."
             exit 1
           fi
-    
+
           echo "Found Project ID: $PROJECT_ID"
           echo "::set-output name=project_id::$PROJECT_ID"
