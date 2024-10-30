@@ -43,7 +43,7 @@ jobs:
           TEAM_NAME: ${{ needs.get-team-name.outputs.team }}
           ORG_NAME: ${{ env.ORG_NAME }}
         run: |
-          PROJECT_ID=$(gh project list --owner "$ORG_NAME" --json name,number,updatedAt --jq ".[] | select(.name | endswith(\"${TEAM_NAME}\")) | {id: .number, updated: .updatedAt} | select(.updated == (.[0].updated)) | .id" | head -n 1)
+          PROJECT_ID=$(gh project list --owner "$ORG_NAME" --format json | jq -r ".[] | select(.name | endswith(\"${TEAM_NAME}\")) | {id: .number, updated: .updatedAt} | select(.updated == (.[0].updated)) | .id" | head -n 1)
 
           if [ -z "$PROJECT_ID" ]; then
             echo "No project found for team $TEAM_NAME."
@@ -65,7 +65,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          MEMBERS=$(gh api orgs/$ORG_NAME/teams/${{ env.TEAM }}/members --jq '.[].login')
+          MEMBERS=$(gh api orgs/${{ env.ORG_NAME }}/teams/${{ env.TEAM }}/members --jq '.[].login')
           echo "::set-output name=members::${MEMBERS}"
 
   get-project-columns:
