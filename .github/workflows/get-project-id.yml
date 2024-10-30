@@ -1,42 +1,11 @@
-name: "Team Contributions Report with Last Updated Project"
+name: Fetch Last Updated Project
 
-on:
-  schedule:
-    - cron: '0 0 * * *'  # Runs daily at midnight UTC
-  workflow_dispatch:  # Allows manual triggering
-
-env:
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the GitHub token from secrets
-  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DM\", \"s24-4pm-2\": \"C06592UPS91\" }"
-  TEAM: ${{ github.repository }}
-  ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
+on: [push]
 
 jobs:
-  get-team-name:
-    name: Get Team Name
+  find_project:
     runs-on: ubuntu-latest
-    outputs:
-      team: ${{ steps.find_team.outputs.team }}
     steps:
-      - name: Extract Team Name from Repo
-        id: find_team
-        run: |
-          REPO=${{ github.repository }}
-          TEAM_NAME="${REPO: -9}"
-          echo "::set-output name=team::${TEAM_NAME}"
-
-  get-project-id:
-    name: Find Last Updated Project ID for Team
-    runs-on: ubuntu-latest
-    needs: get-team-name
-    outputs:
-      project_id: ${{ steps.find_project.outputs.project_id }}
-    steps:
-      - name: Install GitHub CLI and jq
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gh jq
-
       - name: Fetch Last Updated Project
         id: find_project
         env:
@@ -44,14 +13,17 @@ jobs:
           ORG_NAME: ${{ env.ORG_NAME }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the GitHub token from secrets
         run: |
-          # Export the token for the current session
-          echo "${GH_TOKEN}" | gh auth login --with-token
+          # Clear existing authentication
+          gh auth logout
+          
+          # Login using the token
+          echo "${GH_TOKEN}" | gh auth login --with-token || { echo "Login failed"; exit 1; }
 
           # Refresh token with read:project scope specifying the hostname
-          gh auth refresh -s read:project -h github.com
+          gh auth refresh -s read:project -h github.com || { echo "Token refresh failed"; exit 1; }
 
           # Get the list of projects and print the output for inspection
-          PROJECTS_JSON=$(gh project list --owner "$ORG_NAME" --format json)
+          PROJECTS_JSON=$(gh project list --owner "$ORG_NAME" --format json) || { echo "Failed to fetch projects"; exit 1; }
           echo "Projects JSON Output: $PROJECTS_JSON"
           
           # Now use jq to find the project ID
@@ -63,4 +35,4 @@ jobs:
           fi
 
           echo "Found Project ID: $PROJECT_ID"
-          echo "::set-output name=project_id::$PROJECT_ID"
+          echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
