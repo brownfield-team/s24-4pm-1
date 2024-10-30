@@ -1,0 +1,167 @@
+name: "Team Contributions Report with Last Updated Project"
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:  # Allows manual triggering
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
+  TEAM: ${{ github.repository }}
+  ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
+
+jobs:
+  get-team-name:
+    name: Get Team Name
+    runs-on: ubuntu-latest
+    outputs:
+      team: ${{ steps.find_team.outputs.team }}
+    steps:
+      - name: Extract Team Name from Repo
+        id: find_team
+        run: |
+          REPO=${{ github.repository }}
+          TEAM_NAME="${REPO: -9}"
+          echo "::set-output name=team::${TEAM_NAME}"
+
+  get-project-id:
+    name: Find Last Updated Project ID for Team
+    runs-on: ubuntu-latest
+    needs: get-team-name
+    outputs:
+      project_id: ${{ steps.find_project.outputs.project_id }}
+    steps:
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: List Projects and Find Last Updated Project
+        id: find_project
+        env:
+          TEAM_NAME: ${{ needs.get-team-name.outputs.team }}
+          ORG_NAME: ${{ env.ORG_NAME }}
+        run: |
+          echo "Listing all projects for organization $ORG_NAME:"
+          PROJECTS=$(gh project list --org "$ORG_NAME" --json name,number,updatedAt --jq '.[] | "\(.name) (ID: \(.number), Updated: \(.updatedAt))"')
+          echo "$PROJECTS"
+          
+          PROJECT_ID=$(gh project list --org "$ORG_NAME" --json name,number,updatedAt --jq ".[] | select(.name | endswith(\"${TEAM_NAME}\")) | {id: .number, updated: .updatedAt} | select(.updated == (.[0].updated)) | .id" | head -n 1)
+
+          if [ -z "$PROJECT_ID" ]; then
+            echo "No project found for team $TEAM_NAME."
+            exit 1
+          fi
+
+          echo "Found Project ID: $PROJECT_ID"
+          echo "::set-output name=project_id::$PROJECT_ID"
+
+  get-team-members:
+    name: Get Team Members
+    runs-on: ubuntu-latest
+    needs: get-project-id
+    outputs:
+      members: ${{ steps.team_members.outputs.members }}
+    steps:
+      - name: Fetch GitHub Team Members
+        id: team_members
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          MEMBERS=$(gh api orgs/${{ env.ORG_NAME }}/teams/${{ env.TEAM }}/members --jq '.[].login')
+          echo "::set-output name=members::${MEMBERS}"
+
+  get-project-columns:
+    name: Get Project Board Columns
+    needs: [get-project-id, get-team-members]
+    runs-on: ubuntu-latest
+    outputs:
+      columns: ${{ steps.project_columns.outputs.columns }}
+    steps:
+      - name: Fetch Project Board Columns
+        id: project_columns
+        run: |
+          COLUMNS=$(gh api projects/${{ needs.get-project-id.outputs.project_id }}/columns --jq '.[] | {id: .id, name: .name}')
+          echo "::set-output name=columns::${COLUMNS}"
+
+  count-issues:
+    name: Count Issues
+    needs: [get-team-members, get-project-columns]
+    runs-on: ubuntu-latest
+    outputs:
+      report: ${{ steps.prepare_report.outputs.report }}
+    steps:
+      - name: Initialize Report
+        id: initialize_report
+        run: echo "Report initialized."
+
+      - name: Count Issues for Each Member and Format as ASCII Table
+        id: prepare_report
+        env:
+          MEMBERS: ${{ needs.get-team-members.outputs.members }}
+          COLUMNS: ${{ needs.get-project-columns.outputs.columns }}
+        run: |
+          # Prepare the header row with column names
+          HEADER="| Team Member "
+          for COLUMN in $COLUMNS; do
+            COLUMN_NAME=$(echo $COLUMN | jq -r '.name')
+            HEADER="$HEADER | $COLUMN_NAME"
+          done
+          HEADER="$HEADER |"
+          
+          # Add a separator row for readability
+          SEPARATOR="|--------------"
+          for COLUMN in $COLUMNS; do
+            SEPARATOR="$SEPARATOR|--------------"
+          done
+          SEPARATOR="$SEPARATOR|"
+          
+          # Prepare rows for each team member with issue counts per column
+          REPORT="$HEADER\n$SEPARATOR"
+          for MEMBER in $MEMBERS; do
+            ROW="| $MEMBER "
+            for COLUMN in $COLUMNS; do
+              COLUMN_ID=$(echo $COLUMN | jq -r '.id')
+              ISSUE_COUNT=$(gh api projects/columns/$COLUMN_ID/cards --jq '[.[] | select(.content.assignees[].login == $MEMBER)] | length')
+              ROW="$ROW | $ISSUE_COUNT"
+            done
+            REPORT="$REPORT\n$ROW |"
+          done
+          
+          # Output the formatted report
+          echo "::set-output name=report::${REPORT}"
+
+  report:
+    name: Generate Team Report
+    needs: [count-issues]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Generate Report from Project
+        env:
+          PROJECT_ID: ${{ needs.get-project-id.outputs.project_id }}
+          TEAM_NAME: ${{ needs.get-team-name.outputs.team }}
+        run: |
+          echo "Generating report for Project ID: $PROJECT_ID, Team: $TEAM_NAME"
+          # Example command to fetch and process project info
+          # Replace with actual commands to generate report based on project columns and team members
+          echo "Report generated."
+
+  send-report:
+    name: Send Report to Slack
+    needs: report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send to Slack
+        uses: archive/github-actions-slack@v2.0.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
+          slack-text: |
+            📊 *Daily Team Kanban Report* 📊
+            ```
+            ${{ needs.count-issues.outputs.report }}
+            ```
