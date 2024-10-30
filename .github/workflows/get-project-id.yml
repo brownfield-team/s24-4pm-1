@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 env:
-  GH_TOKEN: ${{ github.token }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the GitHub token from secrets
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DM\", \"s24-4pm-2\": \"C06592UPS91\" }"
   TEAM: ${{ github.repository }}
   ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
@@ -45,10 +45,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the GitHub token from secrets
         run: |
           # Export the token for the current session
-          export GH_TOKEN=${GH_TOKEN}
+          echo "${GH_TOKEN}" | gh auth login --with-token
 
-          # Refresh token with read:project scope
-          gh auth refresh -s read:project
+          # Refresh token with read:project scope specifying the hostname
+          gh auth refresh -s read:project -h github.com
 
           # Get the list of projects and print the output for inspection
           PROJECTS_JSON=$(gh project list --owner "$ORG_NAME" --format json)
