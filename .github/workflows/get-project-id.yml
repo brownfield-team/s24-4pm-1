@@ -2,7 +2,7 @@ name: Fetch Last Updated Project
 
 on: 
   push:
-  workflow_dispatch:  # This adds a manual trigger
+  workflow_dispatch:
 
 jobs:
   find_project:
@@ -11,16 +11,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
+      - name: Debug Environment Variables
+        run: |
+          echo "TEAM_NAME: ${{ needs.get-team-name.outputs.team }}"
+          echo "ORG_NAME: ${{ secrets.ORG_NAME }}"
+
+      - name: Clear Existing Authentication
+        run: gh auth logout || echo "No previous authentication to clear"
+
       - name: Fetch Last Updated Project
         id: find_project
         env:
           TEAM_NAME: ${{ needs.get-team-name.outputs.team }}  # Ensure this value is set correctly
-          ORG_NAME: ${{ secrets.ORG_NAME }}  # Fetching from organization secrets
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Fetching from organization secrets
+          ORG_NAME: ${{ secrets.ORG_NAME }}  # Now fetching from organization secrets
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Now fetching from organization secrets
         run: |
-          # Clear existing authentication
-          gh auth logout
-          
           # Login using the token
           echo "${GH_TOKEN}" | gh auth login --with-token || { echo "Login failed"; exit 1; }
 
