@@ -12,7 +12,7 @@ jobs:
       - name: Fetch Last Updated Project
         id: find_project
         env:
-          GH_TOKEN: ${{ secrets.ORG_GH_TOKEN }}  # Use your organization secret
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use your organization secret
           TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
