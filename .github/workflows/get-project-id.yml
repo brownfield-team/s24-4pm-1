@@ -1,12 +1,47 @@
-name: Count Issues by Column
+name: Get Project Data and Count Issues by Column
 
 on:
-  workflow_dispatch: # Allows you to trigger the workflow manually
+  push:
+    branches:
+      - main  # Adjust the branch name as needed
+  workflow_dispatch:  # Manual trigger
 
 jobs:
-  count_issues:
+  get-project-id:
+    name: Get Project ID
     runs-on: ubuntu-latest
-    
+    outputs:
+      project_id: ${{ steps.get_id.outputs.project_id }}
+    steps:
+      - name: Fetch Project ID
+        id: get_id
+        shell: pwsh
+        run: |
+          # GraphQL query to fetch project ID
+          $query = '{organization(login:"brownfield-team"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
+          $headers = @{
+              Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
+              "Content-Type" = "application/json"
+          }
+          $body = @{ query = $query } | ConvertTo-Json
+          $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
+          Write-Host "Projects JSON Output: $($response.Content)"
+          
+          # Find the project ID based on title
+          $projectID = ($response.Content | ConvertFrom-Json).data.organization.projectsV2.nodes | Where-Object { $_.title -like "*s24-4pm-1*" } | Select-Object -First 1 -ExpandProperty id
+          
+          if (-not $projectID) {
+              Write-Host "No project found for team s24-4pm-1."
+              exit 1
+          }
+          
+          Write-Host "Found Project ID: $projectID"
+          echo "::set-output name=project_id::$projectID"  # Correctly set project_id output
+
+  count_issues:
+    name: Count Issues by Column
+    runs-on: ubuntu-latest
+    needs: get-project-id  # Ensure this job runs after fetching the project ID
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -18,7 +53,7 @@ jobs:
       id: count_issues
       shell: pwsh
       env:
-        project_id: ${{ secrets.PROJECT_ID }}  # Set your project ID in GitHub Secrets
+        project_id: ${{ needs.get-project-id.outputs.project_id }}  # Use project ID from previous job
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GITHUB_TOKEN is available
       run: |
         # Retrieve the project ID from the environment variable
