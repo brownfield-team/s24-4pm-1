@@ -1,56 +1,45 @@
-name: Fetch Projects
+- name: Fetch Last Updated Project
+id: find_project
+env:
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use your organization secret
+  TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
+  ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
+run: |
+  # Set the GitHub GraphQL API URL
+  API_URL="https://api.github.com/graphql"
 
-on: [push]
+  # Construct the GraphQL query
+  QUERY='{
+    organization(login: "'"${ORG_NAME}"'") {
+      projectsV2(first: 20) {
+        nodes {
+          id
+          title
+        }
+      }
+    }
+  }'
 
-jobs:
-  find_project:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
+  # Print the query for debugging
+  echo "GraphQL Query: $QUERY"
 
-      - name: Fetch Last Updated Project
-        id: find_project
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use your organization secret
-          TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
-          ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
-        run: |
-          # Set the GitHub GraphQL API URL
-          API_URL="https://api.github.com/graphql"
+  # Fetch projects using the GraphQL query
+  PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d "{\"query\": \"$QUERY\"}" "$API_URL")
 
-          # Construct the GraphQL query
-          QUERY='{
-            organization(login: "'"${ORG_NAME}"'") {
-              projectsV2(first: 20) {
-                nodes {
-                  id
-                  title
-                }
-              }
-            }
-          }'
+  echo "Projects JSON Output: $PROJECTS_JSON"
 
-          # Print the query for debugging
-          echo "GraphQL Query: $QUERY"
+  if [ $? -ne 0 ]; then
+    echo "Failed to fetch projects"
+    exit 1
+  fi
 
-          # Fetch projects using the GraphQL query
-          PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d "{\"query\": \"$QUERY\"}" "$API_URL")
+  # Now use jq to find the project ID
+  PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".data.organization.projectsV2.nodes[] | select(.title | contains(\"${TEAM}\")) | .id" | head -n 1)
 
-          echo "Projects JSON Output: $PROJECTS_JSON"
+  if [ -z "$PROJECT_ID" ]; then
+    echo "No project found for team $TEAM."
+    exit 1
+  fi
 
-          if [ $? -ne 0 ]; then
-            echo "Failed to fetch projects"
-            exit 1
-          fi
-
-          # Now use jq to find the project ID
-          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".data.organization.projectsV2.nodes[] | select(.title | contains(\"${TEAM}\")) | .id" | head -n 1)
-
-          if [ -z "$PROJECT_ID" ]; then
-            echo "No project found for team $TEAM."
-            exit 1
-          fi
-
-          echo "Found Project ID: $PROJECT_ID"
-          echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
+  echo "Found Project ID: $PROJECT_ID"
+  echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
