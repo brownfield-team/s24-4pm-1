@@ -1,46 +1,90 @@
-name: Fetch Projects
+name: GitHub Project Workflow
 
-on: [push]
+on:
+  push:
+    branches:
+      - main  # Change this to your target branch if necessary
+  workflow_dispatch:  # Manual trigger
 
 jobs:
-  find_project:
+  get-project-id:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Fetch Projects with PowerShell
-        shell: pwsh  # Specify PowerShell as the shell
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use your GitHub token secret
-          ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
-          TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
+      - name: Get Project ID
+        id: get_project_id
+        shell: pwsh
         run: |
-          # Update the query to get the first 100 projects
+          # Query to fetch project ID
           $query = '{organization(login:"brownfield-team"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
           $headers = @{
-              Authorization = "Bearer $env:GH_TOKEN"
+              Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
               "Content-Type" = "application/json"
           }
-          $body = @{
-              query = $query
-          } | ConvertTo-Json
-
+          $body = @{ query = $query } | ConvertTo-Json
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
           Write-Host "Projects JSON Output: $($response.Content)"
-
-          # Parse JSON response and extract projects
           $projects = $response.Content | ConvertFrom-Json
-          $sortedProjects = $projects.data.organization.projectsV2.nodes | Sort-Object -Property updatedAt -Descending
-
-          # Find the first matching project for the specified team
-          $projectID = $sortedProjects | Where-Object { $_.title -like "*$env:TEAM*" } | Select-Object -First 1 -ExpandProperty id
-
+          $projectID = $projects.data.organization.projectsV2.nodes | Where-Object { $_.title -like "*s24-4pm-1*" } | Select-Object -First 1 -ExpandProperty id
+          
           if (-not $projectID) {
-              Write-Host "No project found for team $env:TEAM."
+              Write-Host "No project found for team s24-4pm-1."
               exit 1
           }
 
           Write-Host "Found Project ID: $projectID"
-          "project_id=$projectID" | Out-File -FilePath $env:GITHUB_ENV -Append  # Set output in the new way
+          echo "::set-output name=project_id::$projectID"
+
+  get-project-columns:
+    name: Get Project Board Columns
+    needs: get-project-id
+    runs-on: ubuntu-latest
+    outputs:
+      columns: ${{ steps.project_columns.outputs.columns }}
+    steps:
+      - name: Fetch Project Board Columns
+        id: project_columns
+        shell: pwsh
+        run: |
+          # Get the Project ID from the previous step's output
+          $PROJECT_ID = "${{ needs.get-project-id.outputs.project_id }}"
+
+          # Construct the GraphQL query
+          $query = @"
+          {
+            node(id: "$PROJECT_ID") {
+              ... on ProjectV2 {
+                id
+                title
+                updatedAt
+                fields(first: 100) {
+                  nodes {
+                    id
+                    name
+                  }
+                }
+              }
+            }
+          }
+          "@
+
+          # Define headers with the authorization token
+          $headers = @{
+              Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
+              "Content-Type" = "application/json"
+          }
+          
+          # Create the request body
+          $body = @{ query = $query } | ConvertTo-Json
+          
+          # Send the request to the GitHub GraphQL API
+          $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
+          
+          # Output the response content for debugging
+          Write-Host "Columns JSON Output: $($response.Content)"
+          
+          # Extract columns from response
+          $columns = $response.Content | ConvertFrom-Json
+          $columnData = $columns.data.node.fields.nodes | ConvertTo-Json
+          
+          # Set the output for columns
+          echo "::set-output name=columns::$columnData"
