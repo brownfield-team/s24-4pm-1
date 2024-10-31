@@ -21,7 +21,7 @@ jobs:
           # GraphQL query to fetch project ID
           $query = '{organization(login:"brownfield-team"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
           $headers = @{
-              Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
+              Authorization = "Bearer ${{ secrets.PAT }}"
               "Content-Type" = "application/json"
           }
           $body = @{ query = $query } | ConvertTo-Json
