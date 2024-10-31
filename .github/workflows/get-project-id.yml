@@ -75,26 +75,27 @@ jobs:
               "Content-Type" = "application/json"
           }
 
-          # Condensed GraphQL query to fetch project columns and their issues
-          $columnsQuery = @"
+          # Condensed GraphQL query to fetch project items and their fields
+          $itemsQuery = @"
           {
             node(id: `"$($projectID)`") {
               ... on ProjectV2 {
-                columns(first: 10) {
+                items(first: 100) {
                   nodes {
                     id
-                    name
-                    items(first: 100) {
+                    fieldValues(first: 100) {
                       nodes {
-                        id
-                        content {
-                          ... on Issue {
-                            title
-                            assignees(first: 10) {
-                              nodes {
-                                login
-                              }
+                        ... on ProjectV2ItemFieldValue {
+                          field {
+                            ... on ProjectV2Field {
+                              name
                             }
+                          }
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                          }
+                          ... on ProjectV2ItemFieldTextValue {
+                            text
                           }
                         }
                       }
@@ -106,8 +107,8 @@ jobs:
           }
           "@
 
-          # Send request to fetch columns
-          $columnsResponse = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body (@{ query = $columnsQuery } | ConvertTo-Json)
+          # Send request to fetch items
+          $itemsResponse = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body (@{ query = $itemsQuery } | ConvertTo-Json)
 
           # Output the response
-          Write-Host "Columns JSON Output: $($columnsResponse.Content)"
+          Write-Host "Items JSON Output: $($itemsResponse.Content)"
