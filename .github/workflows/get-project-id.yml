@@ -16,11 +16,22 @@ jobs:
           TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
-          # Set the GitHub API URL for fetching projects
-          API_URL="https://api.github.com/orgs/${ORG_NAME}/projects"
+          # Set the GitHub GraphQL API URL
+          API_URL="https://api.github.com/graphql"
 
-          # Fetch projects using the token without needing the GitHub CLI
-          PROJECTS_JSON=$(curl -s -H "Authorization: token ${GH_TOKEN}" "${API_URL}")
+          # Fetch projects using the GraphQL query
+          PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d '{
+            "query": "{
+              organization(login: \"'"$ORG_NAME"'\") {
+                projectsV2(first: 20) {
+                  nodes {
+                    id
+                    title
+                  }
+                }
+              }
+            }"
+          }' "$API_URL")
 
           echo "Projects JSON Output: $PROJECTS_JSON"
 
@@ -30,7 +41,7 @@ jobs:
           fi
 
           # Now use jq to find the project ID
-          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".[] | select(.name | endswith(\"${TEAM}\")) | .id" | head -n 1)
+          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".data.organization.projectsV2.nodes[] | select(.title | contains(\"${TEAM}\")) | .id" | head -n 1)
 
           if [ -z "$PROJECT_ID" ]; then
             echo "No project found for team $TEAM."
