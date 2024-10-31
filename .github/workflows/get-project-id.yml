@@ -18,7 +18,6 @@ jobs:
         run: |
           # Set the GitHub GraphQL API URL
           API_URL="https://api.github.com/graphql"
-
           # Construct the GraphQL query with proper escaping
           QUERY='{
             organization(login: "'"$ORG_NAME"'") {
@@ -30,24 +29,26 @@ jobs:
               }
             }
           }'
-
           # Fetch projects using the GraphQL query
           PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d "{\"query\": \"$QUERY\"}" "$API_URL")
-
           echo "Projects JSON Output: $PROJECTS_JSON"
+          if [ -z "$PROJECTS_JSON" ]; then
+            echo "Failed to fetch projects. API response is empty or null."
+            exit 1
+          fi
 
+          # Ensure the JSON is valid before processing
+          echo "$PROJECTS_JSON" | jq . >/dev/null 2>&1
           if [ $? -ne 0 ]; then
-            echo "Failed to fetch projects"
+            echo "Failed to parse JSON. Invalid JSON format."
             exit 1
           fi
 
           # Now use jq to find the project ID
           PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".data.organization.projectsV2.nodes[] | select(.title | contains(\"${TEAM}\")) | .id" | head -n 1)
-
           if [ -z "$PROJECT_ID" ]; then
             echo "No project found for team $TEAM."
             exit 1
           fi
-
           echo "Found Project ID: $PROJECT_ID"
           echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
