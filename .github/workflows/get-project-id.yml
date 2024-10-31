@@ -85,18 +85,21 @@ jobs:
                     id
                     fieldValues(first: 100) {
                       nodes {
-                        ... on ProjectV2ItemFieldValue {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
                           field {
                             ... on ProjectV2Field {
                               name
                             }
                           }
-                          ... on ProjectV2ItemFieldSingleSelectValue {
-                            name
+                          name
+                        }
+                        ... on ProjectV2ItemFieldTextValue {
+                          field {
+                            ... on ProjectV2Field {
+                              name
+                            }
                           }
-                          ... on ProjectV2ItemFieldTextValue {
-                            text
-                          }
+                          text
                         }
                       }
                     }
