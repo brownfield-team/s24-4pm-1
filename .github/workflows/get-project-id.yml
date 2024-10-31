@@ -57,7 +57,7 @@ jobs:
         shell: pwsh
         env:
           project_id: ${{ needs.get-project-id.outputs.project_id }}  # Use project ID from previous job
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GITHUB_TOKEN is available
+          PAT: ${{ secrets.PAT }}  # Ensure PAT is available
         run: |
           # Retrieve the project ID from the environment variable
           $projectID = $env:project_id
@@ -71,7 +71,7 @@ jobs:
 
           # Prepare GraphQL headers
           $headers = @{
-              Authorization = "Bearer $env:GITHUB_TOKEN"
+              Authorization = "Bearer $env:PAT"  # Use personal access token
               "Content-Type" = "application/json"
           }
 
