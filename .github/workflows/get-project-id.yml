@@ -12,16 +12,16 @@ jobs:
       - name: Fetch Last Updated Project
         id: find_project
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use your organization secret
+          GH_TOKEN: ${{ secrets.MY_PAT }}  # Use your personal access token secret
           TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
         run: |
           # Set the GitHub GraphQL API URL
           API_URL="https://api.github.com/graphql"
 
-          # Construct the GraphQL query
+          # Construct the GraphQL query with proper escaping
           QUERY='{
-            organization(login: "'"${ORG_NAME}"'") {
+            organization(login: "'"$ORG_NAME"'") {
               projectsV2(first: 20) {
                 nodes {
                   id
@@ -30,9 +30,6 @@ jobs:
               }
             }
           }'
-
-          # Print the query for debugging
-          echo "GraphQL Query: $QUERY"
 
           # Fetch projects using the GraphQL query
           PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d "{\"query\": \"$QUERY\"}" "$API_URL")
