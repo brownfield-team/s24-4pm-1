@@ -18,7 +18,7 @@ jobs:
         shell: pwsh
         run: |
           # GraphQL query to fetch project ID
-          $query = '{ organization(login: "brownfield-team") { projectsV2(first: 100) { nodes { id title updatedAt } } } }'
+          $query = '{organization(login:"brownfield-team"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
           $headers = @{
               Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
               "Content-Type" = "application/json"
@@ -38,18 +38,26 @@ jobs:
           Write-Host "Found Project ID: $projectID"
           echo "project_id=$projectID" | Out-File -FilePath $env:GITHUB_ENV -Append  # Set output in the new way
 
-  get-project-items:
-    name: Get Project Fields
+  get-project-columns:
+    name: Get Project Columns
     runs-on: ubuntu-latest
     needs: get-project-id
+    env:
+      project_id: ${{ needs.get-project-id.outputs.project_id }}  # Pass project_id as an environment variable
     steps:
-      - name: Fetch Project Items
+      - name: Fetch Project Columns
         shell: pwsh
         run: |
           # Retrieve the project ID from the previous job's output
-          $projectID = '${{ needs.get-project-id.outputs.project_id }}'
+          $projectID = $env:project_id
           Write-Host "Using Project ID: $projectID"
-
+          
+          # Check if project ID is set
+          if (-not $projectID) {
+              Write-Host "Project ID not found. Exiting."
+              exit 1
+          }
+          
           # GraphQL query to fetch project fields (title, column-like fields, etc.)
           $query = "{ node(id: `"$projectID`") { ... on ProjectV2 { title fields(first: 20) { nodes { ... on ProjectV2Field { id name dataType } } } } } }"
           $headers = @{
