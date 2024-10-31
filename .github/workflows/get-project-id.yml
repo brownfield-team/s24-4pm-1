@@ -1,4 +1,4 @@
-name: Get Project Data and Count Issues by Column
+name: Count Issues by Column
 
 on:
   push:
@@ -38,81 +38,83 @@ jobs:
           Write-Host "Found Project ID: $projectID"
           echo "::set-output name=project_id::$projectID"  # Correctly set project_id output
 
-      - name: Count issues in project columns
-        id: count_issues
-        shell: pwsh
-        env:
-          project_id: ${{ needs.get-project-id.outputs.project_id }}  # Use project ID from previous job
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GITHUB_TOKEN is available
-        run: |
-          # Retrieve the project ID from the environment variable
-          $projectID = $env:project_id
-          Write-Host "Using Project ID: $projectID"
-          
-          # Check if project ID is set
-          if (-not $projectID) {
-              Write-Host "Project ID not found. Exiting."
-              exit 1
-          }
-      
-          # Prepare GraphQL headers
-          $headers = @{
-              Authorization = "Bearer $env:GITHUB_TOKEN"
-              "Content-Type" = "application/json"
-          }
-      
-          # Condensed GraphQL query to fetch project columns and their issues
-          $columnsQuery = "{ node(id: `"$($projectID)`") { ... on ProjectV2 { columns(first: 10) { nodes { id name items(first: 100) { nodes { id content { ... on Issue { title assignees(first: 10) { nodes { login } } } } } } } } } } } }"
-      
-          # Send request to fetch columns
-          $columnsResponse = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body (@{ query = $columnsQuery } | ConvertTo-Json)
-      
-          # Parse the response
-          $columnsData = $columnsResponse.Content | ConvertFrom-Json
-          
-          # Debug: Output the raw response
-          Write-Host "Columns Response JSON Output: $($columnsResponse.Content)"
-      
-          # Check if data exists
-          if (-not $columnsData.data) {
-              Write-Host "No data returned from the API."
-              exit 1
-          }
-      
-          # Initialize a hashtable to store counts
-          $issueCounts = @{}
-      
-          # Loop through each column
-          foreach ($column in $columnsData.data.node.columns.nodes) {
-              $columnName = $column.name
-      
-              # Initialize the entry if not already done
-              if (-not $issueCounts.ContainsKey($columnName)) {
-                  $issueCounts[$columnName] = @{}
-              }
-      
-              # Loop through each issue in the column
-              foreach ($item in $column.items.nodes) {
-                  if ($item.content -is [PSCustomObject] -and $item.content.assignees.nodes.Count -gt 0) {
-                      foreach ($assignee in $item.content.assignees.nodes) {
-                          $assigneeName = $assignee.login
-      
-                          # Initialize the count for this assignee if not already done
-                          if (-not $issueCounts[$columnName].ContainsKey($assigneeName)) {
-                              $issueCounts[$columnName][$assigneeName] = 0
-                          }
-      
-                          # Increment the count for this assignee in the column
-                          $issueCounts[$columnName][$assigneeName]++
-                      }
-                  }
-              }
-          }
-      
-          # Output the counts
-          foreach ($column in $issueCounts.Keys) {
-              Write-Host "Column: $column"
-              foreach ($assignee in $issueCounts[$column].Keys) {
-                  Write-Host "  Assignee: $assignee, Count: $($issueCounts[$column][$assignee])"
-              }
-          }
+  count_issues:
+    name: Count Issues by Column
+    runs-on: ubuntu-latest
+    needs: get-project-id  # Ensure this job runs after fetching the project ID
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up PowerShell
+      uses: pwsh/pwsh@v2.0.0
+
+    - name: Count issues in project columns
+      id: count_issues
+      shell: pwsh
+      env:
+        project_id: ${{ needs.get-project-id.outputs.project_id }}  # Use project ID from previous job
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GITHUB_TOKEN is available
+      run: |
+        # Retrieve the project ID from the environment variable
+        $projectID = $env:project_id
+        Write-Host "Using Project ID: $projectID"
+        
+        # Check if project ID is set
+        if (-not $projectID) {
+            Write-Host "Project ID not found. Exiting."
+            exit 1
+        }
+
+        # Prepare GraphQL headers
+        $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            "Content-Type" = "application/json"
+        }
+
+        # Condensed GraphQL query to fetch project columns and their issues
+        $columnsQuery = "{ node(id: `"$($projectID)`") { ... on ProjectV2 { columns(first: 10) { nodes { id name items(first: 100) { nodes { id content { ... on Issue { title assignees(first: 10) { nodes { login } } } } } } } } } } } }"
+
+        # Send request to fetch columns
+        $columnsResponse = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body (@{ query = $columnsQuery } | ConvertTo-Json)
+
+        # Parse the response
+        $columnsData = $columnsResponse.Content | ConvertFrom-Json
+
+        # Initialize a hashtable to store counts
+        $issueCounts = @{}
+
+        # Loop through each column
+        foreach ($column in $columnsData.data.node.columns.nodes) {
+            $columnName = $column.name
+
+            # Initialize the entry if not already done
+            if (-not $issueCounts.ContainsKey($columnName)) {
+                $issueCounts[$columnName] = @{}
+            }
+
+            # Loop through each issue in the column
+            foreach ($item in $column.items.nodes) {
+                if ($item.content -is [PSCustomObject] -and $item.content.assignees.nodes.Count -gt 0) {
+                    foreach ($assignee in $item.content.assignees.nodes) {
+                        $assigneeName = $assignee.login
+
+                        # Initialize the count for this assignee if not already done
+                        if (-not $issueCounts[$columnName].ContainsKey($assigneeName)) {
+                            $issueCounts[$columnName][$assigneeName] = 0
+                        }
+
+                        # Increment the count for this assignee in the column
+                        $issueCounts[$columnName][$assigneeName]++
+                    }
+                }
+            }
+        }
+
+        # Output the counts
+        foreach ($column in $issueCounts.Keys) {
+            Write-Host "Column: $column"
+            foreach ($assignee in $issueCounts[$column].Keys) {
+                Write-Host "  Assignee: $assignee, Count: $($issueCounts[$column][$assignee])"
+            }
+        }
