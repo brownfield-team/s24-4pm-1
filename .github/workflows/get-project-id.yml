@@ -17,7 +17,8 @@ jobs:
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
           TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
         run: |
-          $query = '{organization(login:"brownfield-team"){projectsV2(first:20){nodes{id,title}}}}'
+          # Update the query to get the first 100 projects
+          $query = '{organization(login:"brownfield-team"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
           $headers = @{
               Authorization = "Bearer $env:GH_TOKEN"
               "Content-Type" = "application/json"
@@ -29,9 +30,12 @@ jobs:
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
           Write-Host "Projects JSON Output: $($response.Content)"
 
-          # Parse JSON response and extract project ID
+          # Parse JSON response and extract projects
           $projects = $response.Content | ConvertFrom-Json
-          $projectID = $projects.data.organization.projectsV2.nodes | Where-Object { $_.title -like "*$env:TEAM*" } | Select-Object -First 1 -ExpandProperty id
+          $sortedProjects = $projects.data.organization.projectsV2.nodes | Sort-Object -Property updatedAt -Descending
+
+          # Find the first matching project for the specified team
+          $projectID = $sortedProjects | Where-Object { $_.title -like "*$env:TEAM*" } | Select-Object -First 1 -ExpandProperty id
 
           if (-not $projectID) {
               Write-Host "No project found for team $env:TEAM."
