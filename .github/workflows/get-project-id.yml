@@ -1,4 +1,4 @@
-name: Get Project Columns
+name: Get Project data
 
 on:
   push:
@@ -36,61 +36,26 @@ jobs:
           }
           
           Write-Host "Found Project ID: $projectID"
-          echo "project_id=$projectID" | Out-File -FilePath $env:GITHUB_ENV -Append  # Set output in the new way
+          echo "::set-output name=project_id::$projectID"  # Set output for use in the next job
 
   get-project-columns:
-    name: Get Project Board Columns
-    needs: get-project-id
+    name: Get Project Columns
     runs-on: ubuntu-latest
-    outputs:
-      columns: ${{ steps.project_columns.outputs.columns }}
+    needs: get-project-id
     steps:
-      - name: Fetch Project Board Columns
-        id: project_columns
+      - name: Fetch Project Columns
         shell: pwsh
         run: |
-          # Get the Project ID from the previous step's output
-          $PROJECT_ID = "${{ needs.get-project-id.outputs.project_id }}"
-          
-          # Construct the GraphQL query
-          $query = @"
-          {
-            node(id: "$PROJECT_ID") {
-              ... on ProjectV2 {
-                id
-                title
-                updatedAt
-                fields {
-                  nodes {
-                    ... on ProjectV2Field {
-                      id
-                      name
-                    }
-                  }
-                }
-              }
-            }
-          }
-          "@
+          # Retrieve the project ID from the previous job
+          $projectID = '${{ needs.get-project-id.outputs.project_id }}'
+          Write-Host "Using Project ID: $projectID"
 
-          # Define headers with the authorization token
+          # GraphQL query to fetch columns
+          $query = '{node(id:"'$projectID'"){... on ProjectV2{fields(first:10){nodes{id,name}}}}}'
           $headers = @{
               Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
               "Content-Type" = "application/json"
           }
-          
-          # Create the request body
           $body = @{ query = $query } | ConvertTo-Json
-          
-          # Send the request to the GitHub GraphQL API
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
-          
-          # Output the response content for debugging
           Write-Host "Columns JSON Output: $($response.Content)"
-          
-          # Extract columns from response
-          $columns = $response.Content | ConvertFrom-Json
-          $columnData = $columns.data.node.fields.nodes | ConvertTo-Json
-          
-          # Set the output for columns
-          echo "::set-output name=columns::$columnData"
