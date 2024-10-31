@@ -5,50 +5,38 @@ on: [push]
 jobs:
   find_project:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Fetch Last Updated Project
-        id: find_project
+      - name: Fetch Projects with PowerShell
+        shell: pwsh  # Specify PowerShell as the shell
         env:
-          GH_TOKEN: ${{ secrets.MY_PAT }}  # Use your personal access token secret
-          TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Use your GitHub token secret
           ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
+          TEAM: "s24-4pm-1"  # Specify team name or adjust as needed
         run: |
-          # Set the GitHub GraphQL API URL
-          API_URL="https://api.github.com/graphql"
-          # Construct the GraphQL query with proper escaping
-          QUERY='{
-            organization(login: "'"$ORG_NAME"'") {
-              projectsV2(first: 20) {
-                nodes {
-                  id
-                  title
-                }
-              }
-            }
-          }'
-          # Fetch projects using the GraphQL query
-          PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d "{\"query\": \"$QUERY\"}" "$API_URL")
-          echo "Projects JSON Output: $PROJECTS_JSON"
-          if [ -z "$PROJECTS_JSON" ]; then
-            echo "Failed to fetch projects. API response is empty or null."
-            exit 1
-          fi
+          $query = '{organization(login:"brownfield-team"){projectsV2(first:20){nodes{id,title}}}}'
+          $headers = @{
+              Authorization = "Bearer $env:GH_TOKEN"
+              "Content-Type" = "application/json"
+          }
+          $body = @{
+              query = $query
+          } | ConvertTo-Json
 
-          # Ensure the JSON is valid before processing
-          echo "$PROJECTS_JSON" | jq . >/dev/null 2>&1
-          if [ $? -ne 0 ]; then
-            echo "Failed to parse JSON. Invalid JSON format."
-            exit 1
-          fi
+          $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
+          Write-Host "Projects JSON Output: $($response.Content)"
 
-          # Now use jq to find the project ID
-          PROJECT_ID=$(echo "$PROJECTS_JSON" | jq -r ".data.organization.projectsV2.nodes[] | select(.title | contains(\"${TEAM}\")) | .id" | head -n 1)
-          if [ -z "$PROJECT_ID" ]; then
-            echo "No project found for team $TEAM."
-            exit 1
-          fi
-          echo "Found Project ID: $PROJECT_ID"
-          echo "project_id=$PROJECT_ID" >> $GITHUB_ENV  # Set output in the new way
+          # Parse JSON response and extract project ID
+          $projects = $response.Content | ConvertFrom-Json
+          $projectID = $projects.data.organization.projectsV2.nodes | Where-Object { $_.title -like "*$env:TEAM*" } | Select-Object -First 1 -ExpandProperty id
+
+          if (-not $projectID) {
+              Write-Host "No project found for team $env:TEAM."
+              exit 1
+          }
+
+          Write-Host "Found Project ID: $projectID"
+          "project_id=$projectID" | Out-File -FilePath $env:GITHUB_ENV -Append  # Set output in the new way
