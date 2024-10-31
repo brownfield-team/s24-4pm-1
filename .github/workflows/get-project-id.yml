@@ -1,20 +1,23 @@
-name: GitHub Project Workflow
+name: Get Project Columns
 
 on:
   push:
     branches:
-      - main  # Change this to your target branch if necessary
+      - main  # Adjust the branch name as needed
   workflow_dispatch:  # Manual trigger
 
 jobs:
   get-project-id:
+    name: Get Project ID
     runs-on: ubuntu-latest
+    outputs:
+      project_id: ${{ steps.get_id.outputs.project_id }}
     steps:
-      - name: Get Project ID
-        id: get_project_id
+      - name: Fetch Project ID
+        id: get_id
         shell: pwsh
         run: |
-          # Query to fetch project ID
+          # GraphQL query to fetch project ID
           $query = '{organization(login:"brownfield-team"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
           $headers = @{
               Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
@@ -23,16 +26,17 @@ jobs:
           $body = @{ query = $query } | ConvertTo-Json
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
           Write-Host "Projects JSON Output: $($response.Content)"
-          $projects = $response.Content | ConvertFrom-Json
-          $projectID = $projects.data.organization.projectsV2.nodes | Where-Object { $_.title -like "*s24-4pm-1*" } | Select-Object -First 1 -ExpandProperty id
+          
+          # Find the project ID based on title
+          $projectID = ($response.Content | ConvertFrom-Json).data.organization.projectsV2.nodes | Where-Object { $_.title -like "*s24-4pm-1*" } | Select-Object -First 1 -ExpandProperty id
           
           if (-not $projectID) {
               Write-Host "No project found for team s24-4pm-1."
               exit 1
           }
-
+          
           Write-Host "Found Project ID: $projectID"
-          echo "::set-output name=project_id::$projectID"
+          echo "project_id=$projectID" | Out-File -FilePath $env:GITHUB_ENV -Append  # Set output in the new way
 
   get-project-columns:
     name: Get Project Board Columns
@@ -47,7 +51,7 @@ jobs:
         run: |
           # Get the Project ID from the previous step's output
           $PROJECT_ID = "${{ needs.get-project-id.outputs.project_id }}"
-
+          
           # Construct the GraphQL query
           $query = @"
           {
@@ -56,10 +60,12 @@ jobs:
                 id
                 title
                 updatedAt
-                fields(first: 100) {
+                fields {
                   nodes {
-                    id
-                    name
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
                   }
                 }
               }
