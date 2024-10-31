@@ -1,4 +1,4 @@
-name: Get Project Data and Count Issues by Column
+name: Count Issues by Column
 
 on:
   push:
