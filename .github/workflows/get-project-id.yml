@@ -38,32 +38,31 @@ jobs:
           Write-Host "Found Project ID: $projectID"
           echo "project_id=$projectID" | Out-File -FilePath $env:GITHUB_ENV -Append  # Set output in the new way
 
-  get-project-columns:
-    name: Get Project Columns
+  get-project-items:
+    name: Get Project Fields
     runs-on: ubuntu-latest
     needs: get-project-id
     steps:
-      - name: Fetch Project Columns
+      - name: Fetch Project Items
         shell: pwsh
         run: |
           # Retrieve the project ID from the previous job's output
           $projectID = '${{ needs.get-project-id.outputs.project_id }}'
           Write-Host "Using Project ID: $projectID"
 
-          # GraphQL query to fetch columns using double quotes for variable expansion
-          $query = "{ node(id: `"$projectID`") { ... on ProjectV2 { fields(first: 10) { nodes { id name } } } } }"
-
+          # GraphQL query to fetch project fields (title, column-like fields, etc.)
+          $query = "{ node(id: `"$projectID`") { ... on ProjectV2 { title fields(first: 20) { nodes { ... on ProjectV2Field { id name dataType } } } } } }"
           $headers = @{
               Authorization = "Bearer ${{ secrets.GH_TOKEN }}"
               "Content-Type" = "application/json"
           }
           $body = @{ query = $query } | ConvertTo-Json
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
-          Write-Host "Columns JSON Output: $($response.Content)"
+          Write-Host "Fields JSON Output: $($response.Content)"
           
-          # Parse and display columns for debugging
-          $columns = $response.Content | ConvertFrom-Json
-          $columnData = $columns.data.node.fields.nodes | ConvertTo-Json
+          # Parse and display fields for debugging
+          $fields = $response.Content | ConvertFrom-Json
+          $fieldsData = $fields.data.node.fields.nodes | ConvertTo-Json
           
-          # Output column data for use in later steps or jobs
-          echo "::set-output name=columns::$columnData"
+          # Output field data for use in later steps or jobs
+          echo "::set-output name=fields::$fieldsData"
