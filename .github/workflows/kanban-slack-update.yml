@@ -1,6 +1,8 @@
 name: Fetch Projects and Columns
 
-on: [push]
+on:
+  workflow_dispatch: # Manual trigger
+  push: # Trigger on push events
 
 jobs:
   get-project-id:
