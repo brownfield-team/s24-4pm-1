@@ -19,19 +19,23 @@ jobs:
           # Set the GitHub GraphQL API URL
           API_URL="https://api.github.com/graphql"
 
-          # Fetch projects using the GraphQL query
-          PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d '{
-            "query": "{
-              organization(login: \"'"$ORG_NAME"'\") {
-                projectsV2(first: 20) {
-                  nodes {
-                    id
-                    title
-                  }
+          # Construct the GraphQL query
+          QUERY='{
+            organization(login: "'"${ORG_NAME}"'") {
+              projectsV2(first: 20) {
+                nodes {
+                  id
+                  title
                 }
               }
-            }"
-          }' "$API_URL")
+            }
+          }'
+
+          # Print the query for debugging
+          echo "GraphQL Query: $QUERY"
+
+          # Fetch projects using the GraphQL query
+          PROJECTS_JSON=$(curl -s -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/json" -d "{\"query\": \"$QUERY\"}" "$API_URL")
 
           echo "Projects JSON Output: $PROJECTS_JSON"
 
