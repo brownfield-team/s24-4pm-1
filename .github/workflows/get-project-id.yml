@@ -152,7 +152,9 @@ jobs:
             Write-Host "ISSUE_COUNTS is empty or not set"
             exit 1
           }
+          Write-Host "Attempting to convert ISSUE_COUNTS to JSON"
           $issueCounts = $issueCounts | ConvertFrom-Json
+          Write-Host "Converted ISSUE_COUNTS to JSON"
           $table = "Column | Assignee | Count`n"
           $table += "-------|----------|------`n"
           foreach ($column in $issueCounts.Keys) {
