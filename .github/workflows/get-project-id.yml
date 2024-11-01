@@ -138,3 +138,24 @@ jobs:
           $issueCountsJson = $issueCounts | ConvertTo-Json -Depth 10
           echo "::set-output name=issue_counts::$issueCountsJson"
           Write-Host "Issue count process completed"
+
+  generate-ascii-table:
+    name: Generate ASCII Table
+    runs-on: ubuntu-latest
+    needs: count_issues
+    steps:
+      - name: Generate ASCII Table
+        id: generate_table
+        shell: pwsh
+        env:
+          ISSUE_COUNTS: ${{ needs.count_issues.outputs.issue_counts }}
+        run: |
+          $issueCounts = $env:ISSUE_COUNTS | ConvertFrom-Json
+          $table = "Column | Assignee | Count`n"
+          $table += "-------|----------|------`n"
+          foreach ($column in $issueCounts.Keys) {
+            foreach ($assignee in $issueCounts[$column].Keys) {
+              $table += "$column | $assignee | $($issueCounts[$column][$assignee])`n"
+            }
+          }
+          Write-Host "ASCII Table:`n$table"
