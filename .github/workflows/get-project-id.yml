@@ -134,7 +134,8 @@ jobs:
           }
           $issueCountsJson = $issueCounts | ConvertTo-Json -Depth 10
           Write-Host "Issue Counts JSON: $issueCountsJson"  # Debugging: Output the issue counts JSON
-          echo "::set-output name=issue_counts::$issueCountsJson"
+          $issueCountsJson | Out-File issue_counts.json
+          echo "::set-output name=issue_counts::$(cat issue_counts.json)"
           Write-Host "Issue count process completed"
 
   generate-ascii-table:
@@ -146,7 +147,7 @@ jobs:
         id: generate_table
         shell: pwsh
         run: |
-          $issueCounts = "${{ needs.count_issues.outputs.issue_counts }}"
+          $issueCounts = Get-Content issue_counts.json
           Write-Host "ISSUE_COUNTS: $issueCounts"  # Debugging: Output the ISSUE_COUNTS variable
           if (-not $issueCounts) {
             Write-Host "ISSUE_COUNTS is empty or not set"
