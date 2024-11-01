@@ -11,6 +11,7 @@ env:
   TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
   TEAM: ${{ github.repository }}
   ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
+  COLUMNS: "Todo, In Progress, In Review, Done"
 
 jobs:
   get-team-name:
@@ -25,6 +26,7 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "::set-output name=team::${TEAM_NAME}"
+
   get-project-id:
     name: Find Last Updated Project ID for Team
     runs-on: ubuntu-latest
@@ -54,6 +56,7 @@ jobs:
           
           Write-Host "Found Project ID: $projectID"
           echo "::set-output name=project_id::$projectID"
+
   get-project-data:
     name: Output GraphQL Query Result
     runs-on: ubuntu-latest
@@ -77,6 +80,7 @@ jobs:
           PAT: ${{ secrets.PAT }}
         run: |
           $PROJECT_ID = $env:project_id; $TOKEN = $env:PAT; $query = "{ node(id: `"$PROJECT_ID`") { ... on ProjectV2 { items(first: 100) { nodes { id fieldValues(first: 100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2Field { name } } name } ... on ProjectV2ItemFieldTextValue { field { ... on ProjectV2Field { name } } text } } } content { ... on Issue { title assignees(first: 10) { nodes { login } } } ... on PullRequest { title assignees(first: 10) { nodes { login } } } } } } } } } }"; $headers = @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" }; $body = @{ query = $query } | ConvertTo-Json; $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body; Write-Host $response.Content; echo "::set-output name=project_data::$($response.Content)"
+
   count_issues:
     name: Count Issues by Column and Assignee
     runs-on: ubuntu-latest
@@ -97,14 +101,16 @@ jobs:
         shell: pwsh
         env:
           project_data: ${{ needs.get-project-data.outputs.project_data }}
+          columns: ${{ env.COLUMNS }}
         run: |
           Write-Host "Starting issue count process"
           $data = $env:project_data | ConvertFrom-Json
           Write-Host "Project Data JSON: $($data | ConvertTo-Json -Depth 10)"
           $issueCounts = @{}
+          $columns = $env:columns -split ", "
           foreach ($item in $data.data.node.items.nodes) {
             Write-Host "Processing item: $($item.id)"
-            $columnField = $item.fieldValues.nodes | Where-Object { $_.name -eq "Status" -or $_.name -eq "testing" -or $_.name -eq "Done" -or $_.name -eq "In Progress" -or $_.name -eq "Todo" }
+            $columnField = $item.fieldValues.nodes | Where-Object { $columns -contains $_.name }
             if ($null -ne $columnField) {
               Write-Host "Found column field: $($columnField | ConvertTo-Json -Depth 10)"
               $column = $columnField.name
@@ -159,6 +165,8 @@ jobs:
       - name: Generate ASCII Table
         id: generate_table
         shell: pwsh
+        env:
+          columns: ${{ env.COLUMNS }}
         run: |
           $issueCounts = Get-Content issue_counts.json
           if (-not $issueCounts) {
@@ -179,7 +187,7 @@ jobs:
           }
       
           # Define the column order and set a consistent width for each cell
-          $columns = @("Todo", "In Progress", "testing", "Done")
+          $columns = $env:columns -split ", "
           $cellWidth = 15  # Adjust this value as needed
       
           # Generate the table header
@@ -245,9 +253,12 @@ jobs:
           printf '```\n%s\n```\n' "$table"
 
       - name: Send Report to Slack
-        run: |
-          table=$(cat ascii_table.txt)
-          printf -v slack_text "📊 *Kanban Board Status* 📊\n"'```\n%s\n```\n' "$table"
-          echo "Sending Slack message:"
-          echo "$slack_text"
-          curl -X POST -H 'Content-type: application/json' --data "{\"channel\":\"${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}\",\"text\":\"$slack_text\"}" https://slack.com/api/chat.postMessage -H "Authorization: Bearer ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}"
+        uses: archive/github-actions-slack@v2.0.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
+          slack-text: |
+            📊 *Kanban Board Status* 📊
+            ```
+            ${{ env.ascii_table_content }}
+            ```
