@@ -179,6 +179,7 @@ jobs:
               Write-Host "Processing assignee: $assignee"  # Debugging: Output the assignee being processed
               if (-not $assignees.ContainsKey($assignee)) {
                 $assignees[$assignee] = @{}
+                Write-Host "Added new assignee: $assignee"  # Debugging: Output when a new assignee is added
               }
               $assignees[$assignee][$column] = $issueCounts[$column][$assignee]
               Write-Host "Added $assignee to $column with count $($issueCounts[$column][$assignee])"  # Debugging: Output the added data
