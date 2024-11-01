@@ -107,7 +107,7 @@ jobs:
           $issueCounts = @{}
           foreach ($item in $data.data.node.items.nodes) {
             Write-Host "Processing item: $($item.id)"
-            $columnField = $item.fieldValues.nodes | Where-Object { $_.name -eq "Status" -or $_.name -eq "testing" -or $_.name -eq "Done" -or $_.name -eq "In Progress" -or $_.name -eq "Todo" }
+            $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" -or $_.field.name -eq "testing" -or $_.field.name -eq "Done" -or $_.field.name -eq "In Progress" -or $_.field.name -eq "Todo" }
             if ($null -ne $columnField) {
               Write-Host "Found column field: $($columnField | ConvertTo-Json -Depth 10)"
               $column = $columnField.name
