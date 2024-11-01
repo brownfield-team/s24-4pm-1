@@ -82,6 +82,7 @@ jobs:
           project_data: ${{ needs.get-project-data.outputs.project_data }}  # Use project data from previous job
         run: |
           $data = $env:project_data | ConvertFrom-Json
+          Write-Host "Project Data JSON: $($data | ConvertTo-Json -Depth 10)"  # Debugging: Output the project data
           $issueCounts = @{}
           foreach ($item in $data.data.node.items.nodes) {
             $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" }
