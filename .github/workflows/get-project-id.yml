@@ -107,7 +107,7 @@ jobs:
           $issueCounts = @{}
           foreach ($item in $data.data.node.items.nodes) {
             Write-Host "Processing item: $($item.id)"
-            $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" -or $_.field.name -eq "testing" -or $_.field.name -eq "Done" -or $_.field.name -eq "In Progress" -or $_.field.name -eq "Todo" }
+            $columnField = $item.fieldValues.nodes | Where-Object { $_.name -eq "Status" -or $_.name -eq "testing" -or $_.name -eq "Done" -or $_.name -eq "In Progress" -or $_.name -eq "Todo" }
             if ($null -ne $columnField) {
               Write-Host "Found column field: $($columnField | ConvertTo-Json -Depth 10)"
               $column = $columnField.name
@@ -138,32 +138,3 @@ jobs:
           $issueCountsJson = $issueCounts | ConvertTo-Json -Depth 10
           echo "::set-output name=issue_counts::$issueCountsJson"
           Write-Host "Issue count process completed"
-
-  send-to-slack:
-    name: Send Report to Slack
-    runs-on: ubuntu-latest
-    needs: count_issues
-    steps:
-      - name: Send Report to Slack
-        id: send_slack
-        shell: pwsh
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          TEAM_TO_CHANNEL: ${{ env.TEAM_TO_CHANNEL }}
-          TEAM: ${{ needs.get-team-name.outputs.team }}
-          ISSUE_COUNTS: ${{ needs.count_issues.outputs.issue_counts }}
-        run: |
-          $channel = (ConvertFrom-Json $env:TEAM_TO_CHANNEL).$($env:TEAM)
-          $issueCounts = $env:ISSUE_COUNTS | ConvertFrom-Json
-          $message = "Issue Counts by Column and Assignee:`n"
-          foreach ($column in $issueCounts.Keys) {
-            $message += "Column: $column`n"
-            foreach ($assignee in $issueCounts[$column].Keys) {
-              $message += "  Assignee: $assignee, Count: $($issueCounts[$column][$assignee])`n"
-            }
-          }
-          $payload = @{
-            channel = $channel
-            text = $message
-          } | ConvertTo-Json
-          Invoke-RestMethod -Uri $env:SLACK_WEBHOOK_URL -Method Post -ContentType 'application/json' -Body $payload
