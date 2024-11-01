@@ -37,10 +37,13 @@ jobs:
           
           Write-Host "Found Project ID: $projectID"
           echo "::set-output name=project_id::$projectID"  # Correctly set project_id output
-  count_issues:
+
+  get-project-data:
     name: Output GraphQL Query Result
     runs-on: ubuntu-latest
     needs: get-project-id  # Ensure this job runs after fetching the project ID
+    outputs:
+      project_data: ${{ steps.output_query.outputs.project_data }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -57,4 +60,50 @@ jobs:
           project_id: ${{ needs.get-project-id.outputs.project_id }}  # Use project ID from previous job
           PAT: ${{ secrets.PAT }}  # Ensure PAT is available
         run: |
-          $PROJECT_ID = $env:project_id; $TOKEN = $env:PAT; $query = "{ node(id: `"$PROJECT_ID`") { ... on ProjectV2 { items(first: 100) { nodes { id fieldValues(first: 100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2Field { name } } name } ... on ProjectV2ItemFieldTextValue { field { ... on ProjectV2Field { name } } text } } } content { ... on Issue { title assignees(first: 10) { nodes { login } } } ... on PullRequest { title assignees(first: 10) { nodes { login } } } } } } } } } }"; $headers = @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" }; $body = @{ query = $query } | ConvertTo-Json; $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body; Write-Host $response.Content
+          $PROJECT_ID = $env:project_id; $TOKEN = $env:PAT; $query = "{ node(id: `"$PROJECT_ID`") { ... on ProjectV2 { items(first: 100) { nodes { id fieldValues(first: 100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2Field { name } } name } ... on ProjectV2ItemFieldTextValue { field { ... on ProjectV2Field { name } } text } } } content { ... on Issue { title assignees(first: 10) { nodes { login } } } ... on PullRequest { title assignees(first: 10) { nodes { login } } } } } } } } } }"; $headers = @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" }; $body = @{ query = $query } | ConvertTo-Json; $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body; Write-Host $response.Content; echo "::set-output name=project_data::$($response.Content)"
+
+  count_issues:
+    name: Count Issues by Column and Assignee
+    runs-on: ubuntu-latest
+    needs: get-project-data  # Ensure this job runs after fetching the project data
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Count Issues by Column and Assignee
+        id: count_issues
+        shell: pwsh
+        env:
+          project_data: ${{ needs.get-project-data.outputs.project_data }}  # Use project data from previous job
+        run: |
+          $data = $env:project_data | ConvertFrom-Json
+          $issueCounts = @{}
+          foreach ($item in $data.data.node.items.nodes) {
+            $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" }
+            if ($null -ne $columnField) {
+              $column = $columnField.name
+              if ($null -ne $column) {
+                $assignees = $item.content.assignees.nodes | Select-Object -ExpandProperty login
+                foreach ($assignee in $assignees) {
+                  if (-not $issueCounts.ContainsKey($column)) {
+                    $issueCounts[$column] = @{}
+                  }
+                  if (-not $issueCounts[$column].ContainsKey($assignee)) {
+                    $issueCounts[$column][$assignee] = 0
+                  }
+                  $issueCounts[$column][$assignee]++
+                }
+              }
+            }
+          }
+          foreach ($column in $issueCounts.Keys) {
+            Write-Host "Column: $column"
+            foreach ($assignee in $issueCounts[$column].Keys) {
+              Write-Host "  Assignee: $assignee, Count: $($issueCounts[$column][$assignee])"
+            }
+          }
