@@ -146,13 +146,13 @@ jobs:
         id: generate_table
         shell: pwsh
         run: |
-          ISSUE_COUNTS="${{ needs.count_issues.outputs.issue_counts }}"
-          Write-Host "ISSUE_COUNTS: $ISSUE_COUNTS"  # Debugging: Output the ISSUE_COUNTS variable
-          if (-not $ISSUE_COUNTS) {
+          $issueCounts = '${{ needs.count_issues.outputs.issue_counts }}'
+          Write-Host "ISSUE_COUNTS: $issueCounts"  # Debugging: Output the ISSUE_COUNTS variable
+          if (-not $issueCounts) {
             Write-Host "ISSUE_COUNTS is empty or not set"
             exit 1
           }
-          $issueCounts = $ISSUE_COUNTS | ConvertFrom-Json
+          $issueCounts = $issueCounts | ConvertFrom-Json
           $table = "Column | Assignee | Count`n"
           $table += "-------|----------|------`n"
           foreach ($column in $issueCounts.Keys) {
