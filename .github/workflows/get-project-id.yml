@@ -222,9 +222,11 @@ jobs:
         run: |
           table=$(cat ascii_table.txt)
           echo "ASCII Table Content:"
-          echo "$table"
+          printf "%s\n" "$table"  # Use printf for better handling of multiline text
           echo "$table" > ascii_table_content.txt
-          echo "ascii_table_content=$(cat ascii_table_content.txt)" >> $GITHUB_ENV
+          echo "ascii_table_content<<EOF" >> $GITHUB_ENV
+          cat ascii_table_content.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Debug Environment Variables
         run: |
@@ -232,12 +234,11 @@ jobs:
           echo "TEAM: ${{ env.TEAM }}"
           echo "ORG_NAME: ${{ env.ORG_NAME }}"
           echo "Slack Channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}"
-          echo "ASCII Table: $(cat ascii_table_content.txt)"
+          echo "ASCII Table:"
+          cat ascii_table_content.txt
 
       - name: Debug Slack Text
         run: |
           echo "Slack Text:"
-          echo "📊 *Kanban Board Status* 📊"
-          echo "```"
-          echo "${{ env.ascii_table_content }}"
-          echo "```"
+          printf "📊 *Kanban Board Status* 📊\n"
+          printf "```\n%s\n```\n" "${{ env.ascii_table_content }}"
