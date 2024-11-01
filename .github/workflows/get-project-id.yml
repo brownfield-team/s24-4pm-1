@@ -89,6 +89,7 @@ jobs:
             Write-Host "Processing item: $($item.id)"  # Debugging: Output the item being processed
             $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" -or $_.field.name -eq "testing" -or $_.field.name -eq "Done" -or $_.field.name -eq "In Progress" -or $_.field.name -eq "Todo" }
             if ($null -ne $columnField) {
+              Write-Host "Found column field: $($columnField | ConvertTo-Json -Depth 10)"  # Debugging: Output the column field being processed
               $column = $columnField.name
               Write-Host "Processing column: $column"  # Debugging: Output the column being processed
               if ($null -ne $column) {
@@ -104,6 +105,8 @@ jobs:
                   $issueCounts[$column][$assignee]++
                 }
               }
+            } else {
+              Write-Host "No column field found for item: $($item.id)"  # Debugging: Output if no column field is found
             }
           }
           foreach ($column in $issueCounts.Keys) {
