@@ -210,7 +210,7 @@ jobs:
   send-to-slack:
     name: Send Report to Slack
     runs-on: ubuntu-latest
-    needs: generate-ascii-table
+    needs: [generate-ascii-table, get-team-name]
     steps:
       - name: Download ASCII Table
         uses: actions/download-artifact@v3
