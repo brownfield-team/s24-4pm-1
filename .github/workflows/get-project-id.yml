@@ -136,6 +136,7 @@ jobs:
             }
           }
           $issueCountsJson = $issueCounts | ConvertTo-Json -Depth 10
+          Write-Host "Issue Counts JSON: $issueCountsJson"  # Debugging: Output the issue counts JSON
           echo "::set-output name=issue_counts::$issueCountsJson"
           Write-Host "Issue count process completed"
 
