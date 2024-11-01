@@ -207,8 +207,8 @@ jobs:
           }
 
           # Generate the table header
-          $header = "Assignee".PadRight($maxLengths["Assignee"]) + " | " + ($columns | ForEach-Object { $_.PadRight($maxLengths[$_]) } -join " | ")
-          $separator = ("-" * $maxLengths["Assignee"]) + "-|" + ($columns | ForEach-Object { "-" * $maxLengths[$_] } -join "-|")
+          $header = "Assignee".PadRight($maxLengths["Assignee"]) + " | " + ($columns | ForEach-Object { $_.PadRight($maxLengths[$_]) }) -join " | "
+          $separator = ("-" * $maxLengths["Assignee"]) + "-|" + ($columns | ForEach-Object { "-" * $maxLengths[$_] }) -join "-|"
           $table = "$header`n$separator`n"
 
           # Debugging: Output the table header and separator
