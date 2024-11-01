@@ -217,13 +217,19 @@ jobs:
         with:
           name: ascii_table
 
+      - name: Read ASCII Table
+        id: read_ascii_table
+        run: |
+          table=$(cat ascii_table.txt)
+          echo "::set-output name=ascii_table::$table"
+
       - name: Debug Environment Variables
         run: |
           echo "TEAM_TO_CHANNEL: ${{ env.TEAM_TO_CHANNEL }}"
           echo "TEAM: ${{ env.TEAM }}"
           echo "ORG_NAME: ${{ env.ORG_NAME }}"
           echo "Slack Channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}"
-          echo "ASCII Table: $(cat ascii_table.txt)"
+          echo "ASCII Table: ${{ steps.read_ascii_table.outputs.ascii_table }}"
 
       - name: Send Report to Slack
         uses: archive/github-actions-slack@v2.0.0
@@ -233,5 +239,5 @@ jobs:
           slack-text: |
             📊 *Kanban Board Status* 📊
             ```
-            $(cat ascii_table.txt)
+            ${{ steps.read_ascii_table.outputs.ascii_table }}
             ```
