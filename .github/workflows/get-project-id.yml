@@ -171,6 +171,9 @@ jobs:
           # Debugging: Output the converted Hashtable
           Write-Host "Converted ISSUE_COUNTS Hashtable: $($issueCounts | ConvertTo-Json -Depth 10)"
 
+          # Verify the keys in the hashtable
+          Write-Host "Keys in ISSUE_COUNTS: $($issueCounts.Keys -join ', ')"
+
           # Collect all assignees using a Hashtable
           $assignees = @{}
           foreach ($column in $issueCounts.Keys) {
