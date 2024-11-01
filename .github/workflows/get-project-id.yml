@@ -146,7 +146,7 @@ jobs:
         id: generate_table
         shell: pwsh
         run: |
-          $issueCounts = '${{ needs.count_issues.outputs.issue_counts }}'
+          $issueCounts = "${{ needs.count_issues.outputs.issue_counts }}"
           Write-Host "ISSUE_COUNTS: $issueCounts"  # Debugging: Output the ISSUE_COUNTS variable
           if (-not $issueCounts) {
             Write-Host "ISSUE_COUNTS is empty or not set"
