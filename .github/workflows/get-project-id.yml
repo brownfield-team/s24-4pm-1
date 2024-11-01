@@ -85,7 +85,7 @@ jobs:
           Write-Host "Project Data JSON: $($data | ConvertTo-Json -Depth 10)"  # Debugging: Output the project data
           $issueCounts = @{}
           foreach ($item in $data.data.node.items.nodes) {
-            $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" }
+            $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" -or $_.field.name -eq "testing" -or $_.field.name -eq "Done" -or $_.field.name -eq "In Progress" -or $_.field.name -eq "Todo" }
             if ($null -ne $columnField) {
               $column = $columnField.name
               if ($null -ne $column) {
