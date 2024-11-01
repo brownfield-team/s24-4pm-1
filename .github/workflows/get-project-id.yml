@@ -181,6 +181,7 @@ jobs:
                 $assignees[$assignee] = @{}
               }
               $assignees[$assignee][$column] = $issueCounts[$column][$assignee]
+              Write-Host "Added $assignee to $column with count $($issueCounts[$column][$assignee])"  # Debugging: Output the added data
             }
           }
 
