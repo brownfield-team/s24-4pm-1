@@ -164,12 +164,12 @@ jobs:
             Write-Host "ISSUE_COUNTS is empty or not set"
             exit 1
           }
-          Write-Host "Attempting to convert ISSUE_COUNTS to JSON"
+          Write-Host "Attempting to convert ISSUE_COUNTS to Hashtable"
           $issueCounts = $issueCounts | ConvertFrom-Json
-          Write-Host "Converted ISSUE_COUNTS to JSON"
+          Write-Host "Converted ISSUE_COUNTS to Hashtable"
 
-          # Debugging: Output the converted JSON
-          Write-Host "Converted ISSUE_COUNTS JSON: $($issueCounts | ConvertTo-Json -Depth 10)"
+          # Debugging: Output the converted Hashtable
+          Write-Host "Converted ISSUE_COUNTS Hashtable: $($issueCounts | ConvertTo-Json -Depth 10)"
 
           # Collect all assignees using a Hashtable
           $assignees = @{}
