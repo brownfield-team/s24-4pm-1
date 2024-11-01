@@ -88,9 +88,11 @@ jobs:
             $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" -or $_.field.name -eq "testing" -or $_.field.name -eq "Done" -or $_.field.name -eq "In Progress" -or $_.field.name -eq "Todo" }
             if ($null -ne $columnField) {
               $column = $columnField.name
+              Write-Host "Processing column: $column"  # Debugging: Output the column being processed
               if ($null -ne $column) {
                 $assignees = $item.content.assignees.nodes | Select-Object -ExpandProperty login
                 foreach ($assignee in $assignees) {
+                  Write-Host "Processing assignee: $assignee"  # Debugging: Output the assignee being processed
                   if (-not $issueCounts.ContainsKey($column)) {
                     $issueCounts[$column] = @{}
                   }
