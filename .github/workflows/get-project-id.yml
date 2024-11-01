@@ -224,6 +224,7 @@ jobs:
           echo "ASCII Table Content:"
           echo "$table"
           echo "$table" > ascii_table_content.txt
+          echo "ascii_table_content=$(cat ascii_table_content.txt)" >> $GITHUB_ENV
 
       - name: Debug Environment Variables
         run: |
@@ -238,16 +239,5 @@ jobs:
           echo "Slack Text:"
           echo "📊 *Kanban Board Status* 📊"
           echo "```"
-          cat ascii_table_content.txt
+          echo "${{ env.ascii_table_content }}"
           echo "```"
-
-      # - name: Send Report to Slack
-      #   uses: archive/github-actions-slack@v2.0.0
-      #   with:
-      #     slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-      #     slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
-      #     slack-text: |
-      #       📊 *Kanban Board Status* 📊
-      #       ```
-      #       $(cat ascii_table_content.txt)
-      #       ```
