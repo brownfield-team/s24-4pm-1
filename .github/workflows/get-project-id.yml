@@ -167,11 +167,32 @@ jobs:
           Write-Host "Attempting to convert ISSUE_COUNTS to JSON"
           $issueCounts = $issueCounts | ConvertFrom-Json
           Write-Host "Converted ISSUE_COUNTS to JSON"
-          $table = "Column | Assignee | Count`n"
-          $table += "-------|----------|------`n"
+
+          # Collect all assignees
+          $assignees = @{}
           foreach ($column in $issueCounts.Keys) {
             foreach ($assignee in $issueCounts[$column].Keys) {
-              $table += "$column | $assignee | $($issueCounts[$column][$assignee])`n"
+              if (-not $assignees.ContainsKey($assignee)) {
+                $assignees[$assignee] = @{}
+              }
+              $assignees[$assignee][$column] = $issueCounts[$column][$assignee]
             }
           }
+
+          # Generate the table header
+          $columns = $issueCounts.Keys
+          $header = "Assignee | " + ($columns -join " | ")
+          $separator = "--------|" + ("--------|" * $columns.Count)
+          $table = "$header`n$separator`n"
+
+          # Generate the table rows
+          foreach ($assignee in $assignees.Keys) {
+            $row = "$assignee |"
+            foreach ($column in $columns) {
+              $count = if ($assignees[$assignee].ContainsKey($column)) { $assignees[$assignee][$column] } else { 0 }
+              $row += " $count |"
+            }
+            $table += "$row`n"
+          }
+
           Write-Host "ASCII Table:`n$table"
