@@ -168,21 +168,27 @@ jobs:
           $issueCounts = $issueCounts | ConvertFrom-Json
           Write-Host "Converted ISSUE_COUNTS to JSON"
 
-          # Debugging: Output the converted JSON
-          Write-Host "Converted ISSUE_COUNTS JSON: $($issueCounts | ConvertTo-Json -Depth 10)"
+          # Convert JSON object to hashtable
+          $issueCountsHashtable = @{}
+          foreach ($key in $issueCounts.PSObject.Properties.Name) {
+            $issueCountsHashtable[$key] = $issueCounts.$key
+          }
 
-          # Collect all assignees
+          # Debugging: Output the converted hashtable
+          Write-Host "Converted ISSUE_COUNTS Hashtable: $($issueCountsHashtable | ConvertTo-Json -Depth 10)"
+
+          # Collect all assignees using a Hashtable
           $assignees = @{}
-          foreach ($column in $issueCounts.Keys) {
+          foreach ($column in $issueCountsHashtable.Keys) {
             Write-Host "Processing column: $column"  # Debugging: Output the column being processed
-            foreach ($assignee in $issueCounts[$column].Keys) {
+            foreach ($assignee in $issueCountsHashtable[$column].Keys) {
               Write-Host "Processing assignee: $assignee"  # Debugging: Output the assignee being processed
               if (-not $assignees.ContainsKey($assignee)) {
                 $assignees[$assignee] = @{}
                 Write-Host "Added new assignee: $assignee"  # Debugging: Output when a new assignee is added
               }
-              $assignees[$assignee][$column] = $issueCounts[$column][$assignee]
-              Write-Host "Added $assignee to $column with count $($issueCounts[$column][$assignee])"  # Debugging: Output the added data
+              $assignees[$assignee][$column] = $issueCountsHashtable[$column][$assignee]
+              Write-Host "Added $assignee to $column with count $($issueCountsHashtable[$column][$assignee])"  # Debugging: Output the added data
             }
           }
 
@@ -190,7 +196,7 @@ jobs:
           Write-Host "Assignees Data: $($assignees | ConvertTo-Json -Depth 10)"
 
           # Generate the table header
-          $columns = $issueCounts.Keys
+          $columns = $issueCountsHashtable.Keys
           $header = "Assignee | " + ($columns -join " | ")
           $separator = "--------|" + ("--------|" * $columns.Count)
           $table = "$header`n$separator`n"
