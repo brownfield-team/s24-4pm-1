@@ -237,4 +237,17 @@ jobs:
         run: |
           echo "Slack Text:"
           echo "📊 *Kanban Board Status* 📊"
-          echo "
+          echo "```"
+          cat ascii_table_content.txt
+          echo "```"
+
+      # - name: Send Report to Slack
+      #   uses: archive/github-actions-slack@v2.0.0
+      #   with:
+      #     slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+      #     slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
+      #     slack-text: |
+      #       📊 *Kanban Board Status* 📊
+      #       ```
+      #       $(cat ascii_table_content.txt)
+      #       ```
