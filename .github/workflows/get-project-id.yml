@@ -245,12 +245,9 @@ jobs:
           printf '```\n%s\n```\n' "$table"
 
       - name: Send Report to Slack
-        uses: archive/github-actions-slack@v2.0.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
-          slack-text: |
-            📊 *Kanban Board Status* 📊
-            ```
-            $(cat ascii_table.txt)
-            ```
+        run: |
+          table=$(cat ascii_table.txt)
+          printf -v slack_text "📊 *Kanban Board Status* 📊\n```\n%s\n```\n" "$table"
+          echo "Sending Slack message:"
+          echo "$slack_text"
+          curl -X POST -H 'Content-type: application/json' --data "{\"channel\":\"${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}\",\"text\":\"$slack_text\"}" https://slack.com/api/chat.postMessage -H "Authorization: Bearer ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}"
