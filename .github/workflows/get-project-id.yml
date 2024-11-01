@@ -247,7 +247,7 @@ jobs:
       - name: Send Report to Slack
         run: |
           table=$(cat ascii_table.txt)
-          printf -v slack_text "📊 *Kanban Board Status* 📊\n```\n%s\n```\n" "$table"
+          printf -v slack_text "📊 *Kanban Board Status* 📊\n"'```\n%s\n```\n' "$table"
           echo "Sending Slack message:"
           echo "$slack_text"
           curl -X POST -H 'Content-type: application/json' --data "{\"channel\":\"${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}\",\"text\":\"$slack_text\"}" https://slack.com/api/chat.postMessage -H "Authorization: Bearer ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}"
