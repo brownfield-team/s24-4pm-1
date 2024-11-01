@@ -81,6 +81,7 @@ jobs:
         env:
           project_data: ${{ needs.get-project-data.outputs.project_data }}  # Use project data from previous job
         run: |
+          Write-Host "Starting issue count process"  # Debugging: Indicate the start of the process
           $data = $env:project_data | ConvertFrom-Json
           Write-Host "Project Data JSON: $($data | ConvertTo-Json -Depth 10)"  # Debugging: Output the project data
           $issueCounts = @{}
@@ -110,3 +111,4 @@ jobs:
               Write-Host "  Assignee: $assignee, Count: $($issueCounts[$column][$assignee])"
             }
           }
+          Write-Host "Issue count process completed"  # Debugging: Indicate the end of the process
