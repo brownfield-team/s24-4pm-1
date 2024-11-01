@@ -151,6 +151,10 @@ jobs:
           ISSUE_COUNTS: ${{ needs.count_issues.outputs.issue_counts }}
         run: |
           Write-Host "ISSUE_COUNTS: $env:ISSUE_COUNTS"  # Debugging: Output the ISSUE_COUNTS variable
+          if (-not $env:ISSUE_COUNTS) {
+            Write-Host "ISSUE_COUNTS is empty or not set"
+            exit 1
+          }
           $issueCounts = $env:ISSUE_COUNTS | ConvertFrom-Json
           $table = "Column | Assignee | Count`n"
           $table += "-------|----------|------`n"
