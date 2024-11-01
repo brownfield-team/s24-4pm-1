@@ -168,6 +168,9 @@ jobs:
           $issueCounts = $issueCounts | ConvertFrom-Json
           Write-Host "Converted ISSUE_COUNTS to JSON"
 
+          # Debugging: Output the converted JSON
+          Write-Host "Converted ISSUE_COUNTS JSON: $($issueCounts | ConvertTo-Json -Depth 10)"
+
           # Collect all assignees
           $assignees = @{}
           foreach ($column in $issueCounts.Keys) {
@@ -178,6 +181,9 @@ jobs:
               $assignees[$assignee][$column] = $issueCounts[$column][$assignee]
             }
           }
+
+          # Debugging: Output the assignees data
+          Write-Host "Assignees Data: $($assignees | ConvertTo-Json -Depth 10)"
 
           # Generate the table header
           $columns = $issueCounts.Keys
