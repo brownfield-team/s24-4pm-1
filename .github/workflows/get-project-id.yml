@@ -1,24 +1,43 @@
-name: Get Project Data and Count Issues by Column
+name: Kanban Slack Update
 
 on:
   push:
     branches:
       - main  # Adjust the branch name as needed
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:  # Allows manual triggering
+
+env:
+  PAT: ${{ secrets.PAT }}
+  TEAM_TO_CHANNEL: "{ \"s24-4pm-1\": \"C071HLX6DMK\", \"s24-4pm-2\": \"C06592UPS91\" }"
+  TEAM: ${{ github.repository }}
+  ORG_NAME: "brownfield-team"  # Replace with your GitHub organization name
 
 jobs:
-  get-project-id:
-    name: Get Project ID
+  get-team-name:
+    name: Get Team Name
     runs-on: ubuntu-latest
     outputs:
-      project_id: ${{ steps.get_id.outputs.project_id }}
+      team: ${{ steps.find_team.outputs.team }}
+    steps:
+      - name: Extract Team Name from Repo
+        id: find_team
+        run: |
+          REPO=${{ github.repository }}
+          TEAM_NAME="${REPO: -9}"
+          echo "::set-output name=team::${TEAM_NAME}"
+
+  get-project-id:
+    name: Find Last Updated Project ID for Team
+    runs-on: ubuntu-latest
+    needs: get-team-name
+    outputs:
+      project_id: ${{ steps.find_project.outputs.project_id }}
     steps:
       - name: Fetch Project ID
-        id: get_id
+        id: find_project
         shell: pwsh
         run: |
-          # GraphQL query to fetch project ID
-          $query = '{organization(login:"brownfield-team"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
+          $query = '{organization(login:"${{ env.ORG_NAME }}"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
           $headers = @{
               Authorization = "Bearer ${{ secrets.PAT }}"
               "Content-Type" = "application/json"
@@ -27,21 +46,20 @@ jobs:
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
           Write-Host "Projects JSON Output: $($response.Content)"
           
-          # Find the project ID based on title
-          $projectID = ($response.Content | ConvertFrom-Json).data.organization.projectsV2.nodes | Where-Object { $_.title -like "*s24-4pm-1*" } | Select-Object -First 1 -ExpandProperty id
+          $projectID = ($response.Content | ConvertFrom-Json).data.organization.projectsV2.nodes | Where-Object { $_.title -like "*${{ needs.get-team-name.outputs.team }}*" } | Select-Object -First 1 -ExpandProperty id
           
           if (-not $projectID) {
-              Write-Host "No project found for team s24-4pm-1."
+              Write-Host "No project found for team ${{ needs.get-team-name.outputs.team }}."
               exit 1
           }
           
           Write-Host "Found Project ID: $projectID"
-          echo "::set-output name=project_id::$projectID"  # Correctly set project_id output
+          echo "::set-output name=project_id::$projectID"
 
   get-project-data:
     name: Output GraphQL Query Result
     runs-on: ubuntu-latest
-    needs: get-project-id  # Ensure this job runs after fetching the project ID
+    needs: get-project-id
     outputs:
       project_data: ${{ steps.output_query.outputs.project_data }}
     steps:
@@ -57,15 +75,17 @@ jobs:
         id: output_query
         shell: pwsh
         env:
-          project_id: ${{ needs.get-project-id.outputs.project_id }}  # Use project ID from previous job
-          PAT: ${{ secrets.PAT }}  # Ensure PAT is available
+          project_id: ${{ needs.get-project-id.outputs.project_id }}
+          PAT: ${{ secrets.PAT }}
         run: |
           $PROJECT_ID = $env:project_id; $TOKEN = $env:PAT; $query = "{ node(id: `"$PROJECT_ID`") { ... on ProjectV2 { items(first: 100) { nodes { id fieldValues(first: 100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2Field { name } } name } ... on ProjectV2ItemFieldTextValue { field { ... on ProjectV2Field { name } } text } } } content { ... on Issue { title assignees(first: 10) { nodes { login } } } ... on PullRequest { title assignees(first: 10) { nodes { login } } } } } } } } } }"; $headers = @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" }; $body = @{ query = $query } | ConvertTo-Json; $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body; Write-Host $response.Content; echo "::set-output name=project_data::$($response.Content)"
 
   count_issues:
     name: Count Issues by Column and Assignee
     runs-on: ubuntu-latest
-    needs: get-project-data  # Ensure this job runs after fetching the project data
+    needs: get-project-data
+    outputs:
+      issue_counts: ${{ steps.count_issues.outputs.issue_counts }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -79,23 +99,23 @@ jobs:
         id: count_issues
         shell: pwsh
         env:
-          project_data: ${{ needs.get-project-data.outputs.project_data }}  # Use project data from previous job
+          project_data: ${{ needs.get-project-data.outputs.project_data }}
         run: |
-          Write-Host "Starting issue count process"  # Debugging: Indicate the start of the process
+          Write-Host "Starting issue count process"
           $data = $env:project_data | ConvertFrom-Json
-          Write-Host "Project Data JSON: $($data | ConvertTo-Json -Depth 10)"  # Debugging: Output the project data
+          Write-Host "Project Data JSON: $($data | ConvertTo-Json -Depth 10)"
           $issueCounts = @{}
           foreach ($item in $data.data.node.items.nodes) {
-            Write-Host "Processing item: $($item.id)"  # Debugging: Output the item being processed
-            $columnField = $item.fieldValues.nodes | Where-Object { $_.name -eq "Status" -or $_.name -eq "testing" -or $_.name -eq "Done" -or $_.name -eq "In Progress" -or $_.name -eq "Todo" }
+            Write-Host "Processing item: $($item.id)"
+            $columnField = $item.fieldValues.nodes | Where-Object { $_.field.name -eq "Status" -or $_.field.name -eq "testing" -or $_.field.name -eq "Done" -or $_.field.name -eq "In Progress" -or $_.field.name -eq "Todo" }
             if ($null -ne $columnField) {
-              Write-Host "Found column field: $($columnField | ConvertTo-Json -Depth 10)"  # Debugging: Output the column field being processed
+              Write-Host "Found column field: $($columnField | ConvertTo-Json -Depth 10)"
               $column = $columnField.name
-              Write-Host "Processing column: $column"  # Debugging: Output the column being processed
+              Write-Host "Processing column: $column"
               if ($null -ne $column) {
                 $assignees = $item.content.assignees.nodes | Select-Object -ExpandProperty login
                 foreach ($assignee in $assignees) {
-                  Write-Host "Processing assignee: $assignee"  # Debugging: Output the assignee being processed
+                  Write-Host "Processing assignee: $assignee"
                   if (-not $issueCounts.ContainsKey($column)) {
                     $issueCounts[$column] = @{}
                   }
@@ -106,7 +126,7 @@ jobs:
                 }
               }
             } else {
-              Write-Host "No column field found for item: $($item.id)"  # Debugging: Output if no column field is found
+              Write-Host "No column field found for item: $($item.id)"
             }
           }
           foreach ($column in $issueCounts.Keys) {
@@ -115,4 +135,35 @@ jobs:
               Write-Host "  Assignee: $assignee, Count: $($issueCounts[$column][$assignee])"
             }
           }
-          Write-Host "Issue count process completed"  # Debugging: Indicate the end of the process
+          $issueCountsJson = $issueCounts | ConvertTo-Json -Depth 10
+          echo "::set-output name=issue_counts::$issueCountsJson"
+          Write-Host "Issue count process completed"
+
+  send-to-slack:
+    name: Send Report to Slack
+    runs-on: ubuntu-latest
+    needs: count_issues
+    steps:
+      - name: Send Report to Slack
+        id: send_slack
+        shell: pwsh
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TEAM_TO_CHANNEL: ${{ env.TEAM_TO_CHANNEL }}
+          TEAM: ${{ needs.get-team-name.outputs.team }}
+          ISSUE_COUNTS: ${{ needs.count_issues.outputs.issue_counts }}
+        run: |
+          $channel = (ConvertFrom-Json $env:TEAM_TO_CHANNEL).$($env:TEAM)
+          $issueCounts = $env:ISSUE_COUNTS | ConvertFrom-Json
+          $message = "Issue Counts by Column and Assignee:`n"
+          foreach ($column in $issueCounts.Keys) {
+            $message += "Column: $column`n"
+            foreach ($assignee in $issueCounts[$column].Keys) {
+              $message += "  Assignee: $assignee, Count: $($issueCounts[$column][$assignee])`n"
+            }
+          }
+          $payload = @{
+            channel = $channel
+            text = $message
+          } | ConvertTo-Json
+          Invoke-RestMethod -Uri $env:SLACK_WEBHOOK_URL -Method Post -ContentType 'application/json' -Body $payload
