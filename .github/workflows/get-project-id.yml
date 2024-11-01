@@ -250,5 +250,7 @@ jobs:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
           slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
           slack-text: |
-            printf "📊 *Kanban Board Status* 📊\n"
-            printf '```\n%s\n```\n' "$table"
+            📊 *Kanban Board Status* 📊
+            ```
+            $(cat ascii_table.txt)
+            ```
