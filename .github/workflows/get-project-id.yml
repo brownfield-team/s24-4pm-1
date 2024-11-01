@@ -194,6 +194,10 @@ jobs:
           $separator = "--------|" + ("--------|" * $columns.Count)
           $table = "$header`n$separator`n"
 
+          # Debugging: Output the table header and separator
+          Write-Host "Table Header: $header"
+          Write-Host "Table Separator: $separator"
+
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
             $row = "$assignee |"
@@ -202,6 +206,7 @@ jobs:
               $row += " $count |"
             }
             $table += "$row`n"
+            Write-Host "Table Row: $row"  # Debugging: Output each table row
           }
 
           Write-Host "ASCII Table:`n$table"
