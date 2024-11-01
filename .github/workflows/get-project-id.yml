@@ -242,4 +242,4 @@ jobs:
           table=$(cat ascii_table.txt)
           echo "Slack Text:"
           printf "📊 *Kanban Board Status* 📊\n"
-          printf "```\n%s\n```\n" "$table"
+          printf '```\n%s\n```\n' "$table"
