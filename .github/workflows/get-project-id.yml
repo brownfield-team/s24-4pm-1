@@ -223,7 +223,7 @@ jobs:
           table=$(cat ascii_table.txt)
           echo "ASCII Table Content:"
           echo "$table"
-          echo "::set-output name=ascii_table::$table"
+          echo "ascii_table=$table" >> $GITHUB_ENV
 
       - name: Debug Environment Variables
         run: |
@@ -231,12 +231,10 @@ jobs:
           echo "TEAM: ${{ env.TEAM }}"
           echo "ORG_NAME: ${{ env.ORG_NAME }}"
           echo "Slack Channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}"
-          echo "ASCII Table: ${{ steps.read_ascii_table.outputs.ascii_table }}"
+          echo "ASCII Table: ${{ env.ascii_table }}"
 
       - name: Debug Slack Text
         run: |
           echo "Slack Text:"
           echo "📊 *Kanban Board Status* 📊"
-          echo "```"
-          echo "${{ steps.read_ascii_table.outputs.ascii_table }}"
-          echo "```"
+          echo "
