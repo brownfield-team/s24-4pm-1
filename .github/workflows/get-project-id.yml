@@ -148,6 +148,8 @@ jobs:
     name: Generate ASCII Table
     runs-on: ubuntu-latest
     needs: count_issues
+    outputs:
+      ascii_table: ${{ steps.generate_table.outputs.ascii_table }}
     steps:
       - name: Download issue counts
         uses: actions/download-artifact@v3
@@ -159,41 +161,81 @@ jobs:
         shell: pwsh
         run: |
           $issueCounts = Get-Content issue_counts.json
+          Write-Host "ISSUE_COUNTS: $issueCounts"  # Debugging: Output the ISSUE_COUNTS variable
           if (-not $issueCounts) {
             Write-Host "ISSUE_COUNTS is empty or not set"
             exit 1
           }
+          Write-Host "Attempting to convert ISSUE_COUNTS to Hashtable"
           $issueCounts = $issueCounts | ConvertFrom-Json
-      
-          # Collect all assignees
+          Write-Host "Converted ISSUE_COUNTS to Hashtable"
+
+          # Debugging: Output the converted Hashtable
+          Write-Host "Converted ISSUE_COUNTS Hashtable: $($issueCounts | ConvertTo-Json -Depth 10)"
+
+          # Inspect the properties of the issueCounts object
+          Write-Host "Properties of ISSUE_COUNTS:"
+          $issueCounts | Get-Member
+
+          # Verify the keys in the hashtable
+          Write-Host "Keys in ISSUE_COUNTS: $($issueCounts.Keys -join ', ')"
+
+          # Collect all assignees using a Hashtable
           $assignees = @{}
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
+            Write-Host "Processing column: $column"  # Debugging: Output the column being processed
             foreach ($assignee in $issueCounts.$column.PSObject.Properties.Name) {
+              Write-Host "Processing assignee: $assignee"  # Debugging: Output the assignee being processed
               if (-not $assignees.ContainsKey($assignee)) {
                 $assignees[$assignee] = @{}
+                Write-Host "Added new assignee: $assignee"  # Debugging: Output when a new assignee is added
               }
               $assignees[$assignee][$column] = $issueCounts.$column.$assignee
+              Write-Host "Added $assignee to $column with count $($issueCounts.$column.$assignee)"  # Debugging: Output the added data
             }
           }
-      
-          # Define the column order and set a consistent width for each cell
+
+          # Debugging: Output the assignees data
+          Write-Host "Assignees Data: $($assignees | ConvertTo-Json -Depth 10)"
+
+          # Define the desired column order
           $columns = @("Todo", "In Progress", "testing", "Done")
-          $cellWidth = 15  # Adjust this value as needed
-      
+
+          # Set a fixed length for each cell
+          $cellLength = 25
+
           # Generate the table header
-          $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
-          $separator = ($columns | ForEach-Object { "-" * $cellWidth }) -join "-|"
+          $header = ($columns | ForEach-Object { $_.PadRight($cellLength) }) -join " | "
+          $separator = ($columns | ForEach-Object { "-" * $cellLength }) -join "-|"
           $table = "| $header |`n| $separator |`n"
-      
+
+          # Debugging: Output the table header and separator
+          Write-Host "Table Header: $header"
+          Write-Host "Table Separator: $separator"
+
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
             $row = "|"
             foreach ($column in $columns) {
               $count = if ($assignees[$assignee].ContainsKey($column)) { "${assignee}: $($assignees[$assignee][$column])" } else { "${assignee}: 0" }
-              $row += " " + $count.PadRight($cellWidth) + " |"
+              $row += " " + $count.PadRight($cellLength) + " |"
             }
             $table += "$row`n"
+            Write-Host "Table Row: $row"  # Debugging: Output each table row
           }
-      
+
           Write-Host "ASCII Table:`n$table"
-  
+          echo "::set-output name=ascii_table::`n$table"
+
+  send-to-slack:
+    name: Send Report to Slack
+    runs-on: ubuntu-latest
+    needs: generate-ascii-table
+    steps:
+      - name: Send Report to Slack
+        uses: archive/github-actions-slack@v2.0.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
+          slack-text: |
+            📊 *Kanban Board Status* 📊
