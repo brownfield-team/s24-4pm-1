@@ -201,9 +201,9 @@ jobs:
 
           # Calculate the maximum length for each column
           $maxLengths = @{}
-          $maxLengths["Assignee"] = ($assignees.Keys | Measure-Object -Maximum Length).Maximum
+          $maxLengths["Assignee"] = [Math]::Max("Assignee".Length, ($assignees.Keys | Measure-Object -Maximum Length).Maximum)
           foreach ($column in $columns) {
-            $maxLengths[$column] = [Math]::Max($column.Length, ($assignees.Values | ForEach-Object { $_[$column] } | Measure-Object -Maximum Length).Maximum)
+            $maxLengths[$column] = [Math]::Max($column.Length, ($assignees.Values | ForEach-Object { if ($_[$column]) { $_[$column].ToString().Length } else { 0 } } | Measure-Object -Maximum Length).Maximum)
           }
 
           # Generate the table header
