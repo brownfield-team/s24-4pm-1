@@ -196,10 +196,19 @@ jobs:
           # Debugging: Output the assignees data
           Write-Host "Assignees Data: $($assignees | ConvertTo-Json -Depth 10)"
 
+          # Define the desired column order
+          $columns = @("Todo", "In Progress", "testing", "Done")
+
+          # Calculate the maximum length for each column
+          $maxLengths = @{}
+          $maxLengths["Assignee"] = ($assignees.Keys | Measure-Object -Maximum Length).Maximum
+          foreach ($column in $columns) {
+            $maxLengths[$column] = [Math]::Max($column.Length, ($assignees.Values | ForEach-Object { $_[$column] } | Measure-Object -Maximum Length).Maximum)
+          }
+
           # Generate the table header
-          $columns = $issueCounts.PSObject.Properties.Name
-          $header = "Assignee | " + ($columns -join " | ")
-          $separator = "--------|" + ("--------|" * $columns.Count)
+          $header = "Assignee".PadRight($maxLengths["Assignee"]) + " | " + ($columns | ForEach-Object { $_.PadRight($maxLengths[$_]) } -join " | ")
+          $separator = ("-" * $maxLengths["Assignee"]) + "-|" + ($columns | ForEach-Object { "-" * $maxLengths[$_] } -join "-|")
           $table = "$header`n$separator`n"
 
           # Debugging: Output the table header and separator
@@ -208,10 +217,10 @@ jobs:
 
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
-            $row = "$assignee |"
+            $row = $assignee.PadRight($maxLengths["Assignee"]) + " |"
             foreach ($column in $columns) {
               $count = if ($assignees[$assignee].ContainsKey($column)) { $assignees[$assignee][$column] } else { 0 }
-              $row += " $count |"
+              $row += " " + $count.ToString().PadRight($maxLengths[$column]) + " |"
             }
             $table += "$row`n"
             Write-Host "Table Row: $row"  # Debugging: Output each table row
