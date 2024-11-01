@@ -232,3 +232,6 @@ jobs:
           slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
           slack-text: |
             📊 *Kanban Board Status* 📊
+            ```
+            $(cat ascii_table.txt)
+            ```
