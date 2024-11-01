@@ -171,21 +171,25 @@ jobs:
           # Debugging: Output the converted Hashtable
           Write-Host "Converted ISSUE_COUNTS Hashtable: $($issueCounts | ConvertTo-Json -Depth 10)"
 
+          # Inspect the properties of the issueCounts object
+          Write-Host "Properties of ISSUE_COUNTS:"
+          $issueCounts | Get-Member
+
           # Verify the keys in the hashtable
           Write-Host "Keys in ISSUE_COUNTS: $($issueCounts.Keys -join ', ')"
 
           # Collect all assignees using a Hashtable
           $assignees = @{}
-          foreach ($column in $issueCounts.Keys) {
+          foreach ($column in $issueCounts.PSObject.Properties.Name) {
             Write-Host "Processing column: $column"  # Debugging: Output the column being processed
-            foreach ($assignee in $issueCounts[$column].Keys) {
+            foreach ($assignee in $issueCounts.$column.PSObject.Properties.Name) {
               Write-Host "Processing assignee: $assignee"  # Debugging: Output the assignee being processed
               if (-not $assignees.ContainsKey($assignee)) {
                 $assignees[$assignee] = @{}
                 Write-Host "Added new assignee: $assignee"  # Debugging: Output when a new assignee is added
               }
-              $assignees[$assignee][$column] = $issueCounts[$column][$assignee]
-              Write-Host "Added $assignee to $column with count $($issueCounts[$column][$assignee])"  # Debugging: Output the added data
+              $assignees[$assignee][$column] = $issueCounts.$column.$assignee
+              Write-Host "Added $assignee to $column with count $($issueCounts.$column.$assignee)"  # Debugging: Output the added data
             }
           }
 
@@ -193,7 +197,7 @@ jobs:
           Write-Host "Assignees Data: $($assignees | ConvertTo-Json -Depth 10)"
 
           # Generate the table header
-          $columns = $issueCounts.Keys
+          $columns = $issueCounts.PSObject.Properties.Name
           $header = "Assignee | " + ($columns -join " | ")
           $separator = "--------|" + ("--------|" * $columns.Count)
           $table = "$header`n$separator`n"
