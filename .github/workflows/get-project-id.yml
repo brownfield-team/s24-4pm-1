@@ -239,6 +239,7 @@ jobs:
 
       - name: Debug Slack Text
         run: |
+          table=$(cat ascii_table.txt)
           echo "Slack Text:"
           printf "📊 *Kanban Board Status* 📊\n"
-          printf "```\n%s\n```\n" "${{ env.ascii_table_content }}"
+          printf "```\n%s\n```\n" "$table"
