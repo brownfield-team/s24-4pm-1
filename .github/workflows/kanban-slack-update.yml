@@ -221,7 +221,7 @@ jobs:
           foreach ($column in $columns) {
             $separator += ("-" * $maxColumnWidth) + "|"
           }
-          $table = "| $header |`n|$separator|`n"
+          $table = "| " + $header + " |`n" + $separator + "`n"
       
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
