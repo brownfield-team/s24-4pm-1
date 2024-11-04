@@ -55,7 +55,7 @@ jobs:
         id: find_project
         shell: pwsh
         run: |
-          $query = @'
+          $query = @"
           {
             organization(login: "${{ env.ORG_NAME }}") {
               projectsV2(first: 100) {
@@ -67,7 +67,7 @@ jobs:
               }
             }
           }
-          '@
+          "@
           $headers = @{
               Authorization = "Bearer ${{ secrets.PAT }}"
               "Content-Type" = "application/json"
@@ -112,7 +112,7 @@ jobs:
         run: |
           $PROJECT_ID = $env:project_id
           $TOKEN = $env:PAT
-          $query = @'
+          $query = @"
           {
             node(id: "$PROJECT_ID") {
               ... on ProjectV2 {
@@ -162,7 +162,7 @@ jobs:
               }
             }
           }
-          '@
+          "@
           $headers = @{
               Authorization = "Bearer $TOKEN"
               "Content-Type" = "application/json"
