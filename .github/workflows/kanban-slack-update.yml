@@ -41,7 +41,6 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "::set-output name=team::${TEAM_NAME}"
-
   # This job finds the project ID for the team based on the team name
   # It finds the last updated project that contains the team name in the title
   # Then sets the project ID as an output for the next job
@@ -74,7 +73,6 @@ jobs:
           
           Write-Host "Found Project ID: $projectID"
           echo "::set-output name=project_id::$projectID"
-
   # This job fetches the project data using the project ID
   # It does this by querying the GraphQL API for the project data
   # Then sets the project data as an output for the next job
@@ -101,7 +99,6 @@ jobs:
           PAT: ${{ secrets.PAT }}
         run: |
           $PROJECT_ID = $env:project_id; $TOKEN = $env:PAT; $query = "{ node(id: `"$PROJECT_ID`") { ... on ProjectV2 { items(first: 100) { nodes { id fieldValues(first: 100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2Field { name } } name } ... on ProjectV2ItemFieldTextValue { field { ... on ProjectV2Field { name } } text } } } content { ... on Issue { title assignees(first: 10) { nodes { login } } } ... on PullRequest { title assignees(first: 10) { nodes { login } } } } } } } } } }"; $headers = @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" }; $body = @{ query = $query } | ConvertTo-Json; $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body; Write-Host $response.Content; echo "::set-output name=project_data::$($response.Content)"
-
   # This job counts the issues by column and assignee
   # It does this by parsing the project data and counting the issues in each column for each assignee
   # Then sets the issue counts as an output for the next job
@@ -167,7 +164,6 @@ jobs:
           $issueCountsJson | Out-File issue_counts.json
           echo "::set-output name=issue_counts::$issueCountsJson"
           Write-Host "Issue count process completed"
-
       - name: Upload issue counts
         uses: actions/upload-artifact@v3
         with:
@@ -221,15 +217,8 @@ jobs:
       
           # Generate the table header
           $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
-          $separator = "|"
-          for ($i = 0; $i -lt $columns.Length; $i++) {
-            if ($i -eq 0) {
-              $separator += " " + ("-" * $cellWidth) + " |"
-            } else {
-              $separator += " " + ("-" * ($cellWidth + 1)) + " |"
-            }
-          }
-          $table = "| $header |`n$separator`n"
+          $separator = ($columns | ForEach-Object { "-" * $cellWidth }) -join "-|"
+          $table = "| $header |`n| $separator |`n"
       
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
@@ -278,7 +267,6 @@ jobs:
           echo "ascii_table_content<<EOF" >> $GITHUB_ENV
           cat ascii_table_content.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-
       #This step is used to debug the environment variables and Slack text
       #because the GitHub Actions runner does not support multiline environment variables
       #The ASCII table content is set as an environment variable for use in the Slack message
@@ -292,7 +280,6 @@ jobs:
           echo "Slack Channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}"
           echo "ASCII Table:"
           cat ascii_table_content.txt
-
       #This step is used to debug the Slack text that will be sent to the Slack channel
       - name: Debug Slack Text
         run: |
@@ -300,7 +287,6 @@ jobs:
           echo "Slack Text:"
           printf "📊 *Kanban Board Status* 📊\n"
           printf '```\n%s\n```\n' "$table"
-
       #This step sends the report to the Slack channel associated with the team
       - name: Send Report to Slack
         uses: archive/github-actions-slack@v2.0.0
