@@ -221,11 +221,11 @@ jobs:
       
           # Generate the table header
           $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
-          $separator = ""
+          $separator = "|"
           for ($i = 0; $i -lt $columns.Length; $i++) {
-            $separator += ("-" * ($cellWidth + $i)) + "-|"
+            $separator += " " + ("-" * ($cellWidth + ($i == 1 ? 1 : 0))) + " |"
           }
-          $table = "| $header |`n| $separator |`n"
+          $table = "| $header |`n$separator`n"
       
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
