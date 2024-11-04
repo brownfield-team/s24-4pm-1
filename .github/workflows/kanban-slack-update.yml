@@ -164,17 +164,13 @@ jobs:
           $issueCountsJson | Out-File issue_counts.json
           echo "::set-output name=issue_counts::$issueCountsJson"
           Write-Host "Issue count process completed"
+
       - name: Upload issue counts
         uses: actions/upload-artifact@v3
         with:
           name: issue_counts
           path: issue_counts.json
 
-
-  # This job generates an ASCII table from the issue counts
-  # It does this by parsing the issue counts JSON and formatting it into an ASCII table
-  # Then sets the ASCII table as an output for the next job
-  # Also uploads the ASCII table as an artifact for debugging
   generate-ascii-table:
     name: Generate ASCII Table
     runs-on: ubuntu-latest
@@ -199,7 +195,7 @@ jobs:
             exit 1
           }
           $issueCounts = $issueCounts | ConvertFrom-Json
-      
+
           # Collect all assignees
           $assignees = @{}
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
@@ -210,35 +206,42 @@ jobs:
               $assignees[$assignee][$column] = $issueCounts.$column.$assignee
             }
           }
-      
-          # Define the column order and set a consistent width for each cell
+
+          # Define the column names and fixed widths
           $columns = $env:columns -split ", "
           $cellWidth = 15  # Fixed width for each column
-      
+
           # Center the text within each cell
           function CenterText($text, $width) {
             $padding = [math]::Max(0, ($width - $text.Length) / 2)
             return " " * [math]::Floor($padding) + $text + " " * [math]::Ceiling($padding)
           }
-      
-          # Generate the table header
-          $header = ($columns | ForEach-Object { CenterText $_ $cellWidth }) -join " | "
+
+          # Generate the table header with centered text
+          $header = "|"
+          foreach ($column in $columns) {
+            $header += " " + (CenterText $column $cellWidth) + " |"
+          }
+
+          # Define the separator with exact dash counts for each column
           $separator = "|"
           foreach ($column in $columns) {
             $separator += " " + ("-" * ($cellWidth - 2)) + " |"
           }
-          $table = "| " + $header + " |`n" + $separator + "`n"
-      
+
+          # Construct the full table
+          $table = "$header`n$separator`n"
+
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
             $row = "|"
             foreach ($column in $columns) {
               $count = if ($assignees[$assignee].ContainsKey($column)) { "${assignee}: $($assignees[$assignee][$column])" } else { "${assignee}: 0" }
-              $row += " " + CenterText $count $cellWidth + " |"
+              $row += " " + (CenterText $count $cellWidth) + " |"
             }
             $table += "$row`n"
           }
-      
+
           Write-Host "ASCII Table:`n$table"
           $table | Out-File ascii_table.txt
           echo "::set-output name=ascii_table::$table"
@@ -249,13 +252,6 @@ jobs:
           name: ascii_table
           path: ascii_table.txt
 
-  # This job sends the report to the Slack channel associated with the team
-  # It does this by reading the ASCII table and sending it as a message to the Slack channel
-  # The Slack channel is determined by the mapping of team names to channel IDs
-  # The team name is extracted from the repository name
-  # The Slack bot user OAuth access token is used to authenticate the request
-  # The ASCII table content is set as an environment variable for use in the Slack message
-  # The Slack message includes a header and the ASCII table content
   send-to-slack:
     name: Send Report to Slack
     runs-on: ubuntu-latest
