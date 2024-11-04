@@ -213,13 +213,19 @@ jobs:
       
           # Define the column order and set a consistent width for each cell
           $columns = $env:columns -split ", "
-          $maxColumnWidth = ($columns | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum
+          $cellWidth = 15  # Fixed width for each column
+      
+          # Center the text within each cell
+          function CenterText($text, $width) {
+            $padding = [math]::Max(0, ($width - $text.Length) / 2)
+            return " " * [math]::Floor($padding) + $text + " " * [math]::Ceiling($padding)
+          }
       
           # Generate the table header
-          $header = ($columns | ForEach-Object { $_.PadRight($maxColumnWidth) }) -join " | "
+          $header = ($columns | ForEach-Object { CenterText $_ $cellWidth }) -join " | "
           $separator = "|"
           foreach ($column in $columns) {
-            $separator += ("-" * $maxColumnWidth) + "|"
+            $separator += " " + ("-" * ($cellWidth - 2)) + " |"
           }
           $table = "| " + $header + " |`n" + $separator + "`n"
       
@@ -228,7 +234,7 @@ jobs:
             $row = "|"
             foreach ($column in $columns) {
               $count = if ($assignees[$assignee].ContainsKey($column)) { "${assignee}: $($assignees[$assignee][$column])" } else { "${assignee}: 0" }
-              $row += " " + $count.PadRight($maxColumnWidth) + " |"
+              $row += " " + CenterText $count $cellWidth + " |"
             }
             $table += "$row`n"
           }
