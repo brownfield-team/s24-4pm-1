@@ -221,7 +221,10 @@ jobs:
       
           # Generate the table header
           $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
-          $separator = ($columns | ForEach-Object { "-" * $cellWidth }) -join "-|"
+          $separator = ""
+          for ($i = 0; $i -lt $columns.Length; $i++) {
+            $separator += ("-" * ($cellWidth + $i)) + "-|"
+          }
           $table = "| $header |`n| $separator |`n"
       
           # Generate the table rows
