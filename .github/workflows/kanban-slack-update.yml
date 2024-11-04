@@ -14,9 +14,6 @@ name: Kanban Slack Update
 on:
   schedule:
     - cron: "0 9 * * *"  # Run at 9:00 AM every day
-  push:
-    branches:
-      - main  # Adjust the branch name as needed
   workflow_dispatch:  # Allows manual triggering
 
 env:
