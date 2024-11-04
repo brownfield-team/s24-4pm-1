@@ -61,7 +61,8 @@ jobs:
         run: |
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
-          echo "::set-output name=team::${TEAM_NAME}}"
+          echo "::set-output name=team::${TEAM_NAME}"
+
   # This job finds the project ID for the team based on the team name
   # It finds the last updated project that contains the team name in the title
   # Then sets the project ID as an output for the next job
@@ -353,13 +354,6 @@ jobs:
           name: ascii_table
           path: ascii_table.txt
 
-  # This job sends the report to the Slack channel associated with the team
-  # It does this by reading the ASCII table and sending it as a message to the Slack channel
-  # The Slack channel is determined by the mapping of team names to channel IDs
-  # The team name is extracted from the repository name
-  # The Slack bot user OAuth access token is used to authenticate the request
-  # The ASCII table content is set as an environment variable for use in the Slack message
-  # The Slack message includes a header and the ASCII table content
   send-to-slack:
     name: Send Report to Slack
     runs-on: ubuntu-latest
