@@ -213,7 +213,7 @@ jobs:
 
           # Define the column names and fixed widths
           $columns = $env:columns -split ", "
-          $columnWidths = @(16, 16, 16, 16)  # Fixed widths for each column
+          $columnWidths = @(32, 32, 32, 32)  # Fixed widths for each column
 
           # Center the text within each cell
           function CenterText($text, $width) {
