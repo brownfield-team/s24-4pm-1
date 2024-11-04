@@ -217,8 +217,11 @@ jobs:
       
           # Generate the table header
           $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
-          $separator = ($columns | ForEach-Object { "-" * $cellWidth }) -join "-|"
-          $table = "| $header |`n| $separator |`n"
+          $separator = "|"
+          foreach ($column in $columns) {
+            $separator += " " + ("-" * $column.Length) + " |"
+          }
+          $table = "| $header |`n$separator`n"
       
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
