@@ -199,37 +199,54 @@ jobs:
             exit 1
           }
           $issueCounts = $issueCounts | ConvertFrom-Json
-      
+
           # Collect all assignees
-          $assignees = @{}
+          $assignees = @{} 
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
             foreach ($assignee in $issueCounts.$column.PSObject.Properties.Name) {
               if (-not $assignees.ContainsKey($assignee)) {
-                $assignees[$assignee] = @{}
+                $assignees[$assignee] = @{} 
               }
               $assignees[$assignee][$column] = $issueCounts.$column.$assignee
             }
           }
-      
-          # Define the column order and set a consistent width for each cell
+
+          # Define the column names and fixed widths
           $columns = $env:columns -split ", "
-          $cellWidth = 15  # Adjust this value as needed
-      
-          # Generate the table header
-          $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
-          $separator = ($columns | ForEach-Object { "-" * $cellWidth }) -join "-|"
-          $table = "| $header |`n| $separator |`n"
-      
+          $columnWidths = @(16, 16, 16, 16)  # Fixed widths for each column
+
+          # Center the text within each cell
+          function CenterText($text, $width) {
+            $padding = [math]::Max(0, ($width - $text.Length) / 2)
+            return " " * [math]::Floor($padding) + $text + " " * [math]::Ceiling($padding)
+          }
+
+          # Generate the table header with centered text
+          $header = "|"
+          for ($i = 0; $i -lt $columns.Count; $i++) {
+            $colText = CenterText $columns[$i] ($columnWidths[$i] - 2)  # Leave space for padding
+            $header += " $colText |"
+          }
+
+          # Define the separator with exact dash counts for each column
+          $separator = "|"
+          foreach ($width in $columnWidths) {
+            $separator += " " + ("-" * ($width - 2)) + " |"  # Adjusting for padding
+          }
+
+          # Construct the full table
+          $table = "$header`n$separator`n"
+
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
             $row = "|"
             foreach ($column in $columns) {
               $count = if ($assignees[$assignee].ContainsKey($column)) { "${assignee}: $($assignees[$assignee][$column])" } else { "${assignee}: 0" }
-              $row += " " + $count.PadRight($cellWidth) + " |"
+              $row += " " + CenterText $count ($columnWidths[0] - 2) + " |"  # Adjusting for padding
             }
             $table += "$row`n"
           }
-      
+
           Write-Host "ASCII Table:`n$table"
           $table | Out-File ascii_table.txt
           echo "::set-output name=ascii_table::$table"
