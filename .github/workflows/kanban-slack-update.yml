@@ -373,7 +373,7 @@ jobs:
         run: |
           table=$(cat ascii_table.txt)
           echo "Slack Text:"
-          printf "📊 *Kanban Board Status* 📊\n"
+          printf "📋 *Kanban Board Status* ✔️\n"
           printf '```\n%s\n```\n' "$table"
       #This step sends the report to the Slack channel associated with the team
       - name: Send Report to Slack
@@ -382,7 +382,7 @@ jobs:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
           slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
           slack-text: |
-            📊 *Kanban Board Status* 📊
+            📋 *Kanban Board Status* ✔️
             ```
             ${{ env.ascii_table_content }}
             ```
