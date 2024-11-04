@@ -55,7 +55,19 @@ jobs:
         id: find_project
         shell: pwsh
         run: |
-          $query = '{organization(login:"${{ env.ORG_NAME }}"){projectsV2(first:100){nodes{id,title,updatedAt}}}}'
+          $query = @'
+          {
+            organization(login: "${{ env.ORG_NAME }}") {
+              projectsV2(first: 100) {
+                nodes {
+                  id
+                  title
+                  updatedAt
+                }
+              }
+            }
+          }
+          '@
           $headers = @{
               Authorization = "Bearer ${{ secrets.PAT }}"
               "Content-Type" = "application/json"
@@ -98,10 +110,68 @@ jobs:
           project_id: ${{ needs.get-project-id.outputs.project_id }}
           PAT: ${{ secrets.PAT }}
         run: |
-          $PROJECT_ID = $env:project_id; $TOKEN = $env:PAT; $query = "{ node(id: `"$PROJECT_ID`") { ... on ProjectV2 { items(first: 100) { nodes { id fieldValues(first: 100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2Field { name } } name } ... on ProjectV2ItemFieldTextValue { field { ... on ProjectV2Field { name } } text } } } content { ... on Issue { title assignees(first: 10) { nodes { login } } } ... on PullRequest { title assignees(first: 10) { nodes { login } } } } } } } } } }"; $headers = @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" }; $body = @{ query = $query } | ConvertTo-Json; $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body; Write-Host $response.Content; echo "::set-output name=project_data::$($response.Content)"
-  # This job counts the issues by column and assignee
-  # It does this by parsing the project data and counting the issues in each column for each assignee
-  # Then sets the issue counts as an output for the next job
+          $PROJECT_ID = $env:project_id
+          $TOKEN = $env:PAT
+          $query = @'
+          {
+            node(id: "$PROJECT_ID") {
+              ... on ProjectV2 {
+                items(first: 100) {
+                  nodes {
+                    id
+                    fieldValues(first: 100) {
+                      nodes {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          field {
+                            ... on ProjectV2Field {
+                              name
+                            }
+                          }
+                          name
+                        }
+                        ... on ProjectV2ItemFieldTextValue {
+                          field {
+                            ... on ProjectV2Field {
+                              name
+                            }
+                          }
+                          text
+                        }
+                      }
+                    }
+                    content {
+                      ... on Issue {
+                        title
+                        assignees(first: 10) {
+                          nodes {
+                            login
+                          }
+                        }
+                      }
+                      ... on PullRequest {
+                        title
+                        assignees(first: 10) {
+                          nodes {
+                            login
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          '@
+          $headers = @{
+              Authorization = "Bearer $TOKEN"
+              "Content-Type" = "application/json"
+          }
+          $body = @{ query = $query } | ConvertTo-Json
+          $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
+          Write-Host $response.Content
+          echo "::set-output name=project_data::$($response.Content)"
+
   count_issues:
     name: Count Issues by Column and Assignee
     runs-on: ubuntu-latest
