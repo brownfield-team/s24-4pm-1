@@ -1,4 +1,14 @@
 name: Kanban Slack Update
+#Instructions to set up the workflow
+#Copy the workflow file to your repository in the .github/workflows directory.
+#Create a personal access token called PAT and add it in the organization secrets with the name PAT.
+#Create a Slack bot user and add the OAuth access token in the organization secrets with the name SLACK_BOT_USER_OAUTH_ACCESS_TOKEN.
+#Update the TEAM_TO_CHANNEL environment variable with the mapping of team names to Slack channel IDs.
+#Update the ORG_NAME environment variable with your GitHub organization name.
+#Update the COLUMNS environment variable with the column names in your project board.
+#Update the branch name in the on section to match the branch you want to trigger the workflow on.
+#Commit the changes to the main branch to trigger the workflow.
+#The workflow will run and post the Kanban board status to the Slack channel associated with the team name.
 
 on:
   push:
@@ -14,8 +24,13 @@ env:
   COLUMNS: "Todo, In Progress, In Review, Done"
 
 jobs:
+
+  # This job extracts the team name from the repository name
+  # The team name is used to find the project ID for the team
+  # It does this by extracting the last 9 characters of the repository name
+  # Then sets the team name as an output for the next job
   get-team-name:
-    name: Get Team Name
+    name: Get Team Name 
     runs-on: ubuntu-latest
     outputs:
       team: ${{ steps.find_team.outputs.team }}
@@ -27,6 +42,9 @@ jobs:
           TEAM_NAME="${REPO: -9}"
           echo "::set-output name=team::${TEAM_NAME}"
 
+  # This job finds the project ID for the team based on the team name
+  # It finds the last updated project that contains the team name in the title
+  # Then sets the project ID as an output for the next job
   get-project-id:
     name: Find Last Updated Project ID for Team
     runs-on: ubuntu-latest
@@ -57,6 +75,9 @@ jobs:
           Write-Host "Found Project ID: $projectID"
           echo "::set-output name=project_id::$projectID"
 
+  # This job fetches the project data using the project ID
+  # It does this by querying the GraphQL API for the project data
+  # Then sets the project data as an output for the next job
   get-project-data:
     name: Output GraphQL Query Result
     runs-on: ubuntu-latest
@@ -81,6 +102,9 @@ jobs:
         run: |
           $PROJECT_ID = $env:project_id; $TOKEN = $env:PAT; $query = "{ node(id: `"$PROJECT_ID`") { ... on ProjectV2 { items(first: 100) { nodes { id fieldValues(first: 100) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2Field { name } } name } ... on ProjectV2ItemFieldTextValue { field { ... on ProjectV2Field { name } } text } } } content { ... on Issue { title assignees(first: 10) { nodes { login } } } ... on PullRequest { title assignees(first: 10) { nodes { login } } } } } } } } } }"; $headers = @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" }; $body = @{ query = $query } | ConvertTo-Json; $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body; Write-Host $response.Content; echo "::set-output name=project_data::$($response.Content)"
 
+  # This job counts the issues by column and assignee
+  # It does this by parsing the project data and counting the issues in each column for each assignee
+  # Then sets the issue counts as an output for the next job
   count_issues:
     name: Count Issues by Column and Assignee
     runs-on: ubuntu-latest
@@ -150,6 +174,11 @@ jobs:
           name: issue_counts
           path: issue_counts.json
 
+
+  # This job generates an ASCII table from the issue counts
+  # It does this by parsing the issue counts JSON and formatting it into an ASCII table
+  # Then sets the ASCII table as an output for the next job
+  # Also uploads the ASCII table as an artifact for debugging
   generate-ascii-table:
     name: Generate ASCII Table
     runs-on: ubuntu-latest
@@ -215,6 +244,13 @@ jobs:
           name: ascii_table
           path: ascii_table.txt
 
+  # This job sends the report to the Slack channel associated with the team
+  # It does this by reading the ASCII table and sending it as a message to the Slack channel
+  # The Slack channel is determined by the mapping of team names to channel IDs
+  # The team name is extracted from the repository name
+  # The Slack bot user OAuth access token is used to authenticate the request
+  # The ASCII table content is set as an environment variable for use in the Slack message
+  # The Slack message includes a header and the ASCII table content
   send-to-slack:
     name: Send Report to Slack
     runs-on: ubuntu-latest
@@ -236,6 +272,11 @@ jobs:
           cat ascii_table_content.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      #This step is used to debug the environment variables and Slack text
+      #because the GitHub Actions runner does not support multiline environment variables
+      #The ASCII table content is set as an environment variable for use in the Slack message
+      #therefore, the ASCII table content is written to a file and then read back to set the environment variable
+      #The ASCII table content is also printed for debugging purposes
       - name: Debug Environment Variables
         run: |
           echo "TEAM_TO_CHANNEL: ${{ env.TEAM_TO_CHANNEL }}"
@@ -245,6 +286,7 @@ jobs:
           echo "ASCII Table:"
           cat ascii_table_content.txt
 
+      #This step is used to debug the Slack text that will be sent to the Slack channel
       - name: Debug Slack Text
         run: |
           table=$(cat ascii_table.txt)
@@ -252,6 +294,7 @@ jobs:
           printf "📊 *Kanban Board Status* 📊\n"
           printf '```\n%s\n```\n' "$table"
 
+      #This step sends the report to the Slack channel associated with the team
       - name: Send Report to Slack
         uses: archive/github-actions-slack@v2.0.0
         with:
