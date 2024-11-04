@@ -44,6 +44,8 @@ jobs:
           else
             echo "Current date is before $end_date. Continuing workflow."
             echo "::set-output name=continue::true"
+          fi
+
   # This job extracts the team name from the repository name
   # The team name is used to find the project ID for the team
   # It does this by extracting the last 9 characters of the repository name
