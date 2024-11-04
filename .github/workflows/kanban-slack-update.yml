@@ -164,21 +164,34 @@ jobs:
           $issueCountsJson | Out-File issue_counts.json
           echo "::set-output name=issue_counts::$issueCountsJson"
           Write-Host "Issue count process completed"
-
       - name: Upload issue counts
         uses: actions/upload-artifact@v3
         with:
           name: issue_counts
           path: issue_counts.json
 
+
+  # This job generates an ASCII table from the issue counts
+  # It does this by parsing the issue counts JSON and formatting it into an ASCII table
+  # Then sets the ASCII table as an output for the next job
+  # Also uploads the ASCII table as an artifact for debugging
   generate-ascii-table:
     name: Generate ASCII Table
     runs-on: ubuntu-latest
+    needs: count_issues
+    outputs:
+      ascii_table: ${{ steps.generate_table.outputs.ascii_table }}
     steps:
-      - name: Set Columns Environment Variable
-        run: echo "columns=${{ env.COLUMNS }}" >> $GITHUB_ENV
+      - name: Download issue counts
+        uses: actions/download-artifact@v3
+        with:
+          name: issue_counts
+
       - name: Generate ASCII Table
+        id: generate_table
         shell: pwsh
+        env:
+          columns: ${{ env.COLUMNS }}
         run: |
           $issueCounts = Get-Content issue_counts.json
           if (-not $issueCounts) {
@@ -198,32 +211,21 @@ jobs:
             }
           }
       
-          # Define the column names and fixed widths
+          # Define the column order and set a consistent width for each cell
           $columns = $env:columns -split ", "
-          $columnWidths = @(16, 16, 16, 16)  # Fixed widths for each column
+          $cellWidth = 15  # Adjust this value as needed
       
-          # Generate the table header with centered text
-          $header = "|"
-          for ($i = 0; $i -lt $columns.Count; $i++) {
-            $colText = $columns[$i].PadRight($columnWidths[$i] - 2)  # Leave space for padding
-            $header += " $colText |"
-          }
-      
-          # Define the separator with exact dash counts for each column
-          $separator = "|"
-          foreach ($width in $columnWidths) {
-            $separator += " " + ("-" * ($width - 2)) + " |"  # Adjusting for padding
-          }
-      
-          # Construct the full table
-          $table = "$header`n$separator`n"
+          # Generate the table header
+          $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
+          $separator = ($columns | ForEach-Object { "-" * $cellWidth }) -join "-|"
+          $table = "| $header |`n| $separator |`n"
       
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
             $row = "|"
             foreach ($column in $columns) {
               $count = if ($assignees[$assignee].ContainsKey($column)) { "${assignee}: $($assignees[$assignee][$column])" } else { "${assignee}: 0" }
-              $row += " " + $count.PadRight($columnWidths[0] - 2) + " |"  # Adjusting for padding
+              $row += " " + $count.PadRight($cellWidth) + " |"
             }
             $table += "$row`n"
           }
@@ -231,8 +233,20 @@ jobs:
           Write-Host "ASCII Table:`n$table"
           $table | Out-File ascii_table.txt
           echo "::set-output name=ascii_table::$table"
-  
 
+      - name: Upload ASCII Table
+        uses: actions/upload-artifact@v3
+        with:
+          name: ascii_table
+          path: ascii_table.txt
+
+  # This job sends the report to the Slack channel associated with the team
+  # It does this by reading the ASCII table and sending it as a message to the Slack channel
+  # The Slack channel is determined by the mapping of team names to channel IDs
+  # The team name is extracted from the repository name
+  # The Slack bot user OAuth access token is used to authenticate the request
+  # The ASCII table content is set as an environment variable for use in the Slack message
+  # The Slack message includes a header and the ASCII table content
   send-to-slack:
     name: Send Report to Slack
     runs-on: ubuntu-latest
