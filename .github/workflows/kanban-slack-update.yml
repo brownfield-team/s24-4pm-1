@@ -223,7 +223,11 @@ jobs:
           $header = ($columns | ForEach-Object { $_.PadRight($cellWidth) }) -join " | "
           $separator = "|"
           for ($i = 0; $i -lt $columns.Length; $i++) {
-            $separator += " " + ("-" * ($cellWidth + (if ($i -eq 1) { 1 } else { 0 }))) + " |"
+            if ($i -eq 1) {
+              $separator += " " + ("-" * ($cellWidth + 1)) + " |"
+            } else {
+              $separator += " " + ("-" * $cellWidth) + " |"
+            }
           }
           $table = "| $header |`n$separator`n"
       
