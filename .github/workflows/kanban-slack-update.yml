@@ -174,20 +174,11 @@ jobs:
   generate-ascii-table:
     name: Generate ASCII Table
     runs-on: ubuntu-latest
-    needs: count_issues
-    outputs:
-      ascii_table: ${{ steps.generate_table.outputs.ascii_table }}
     steps:
-      - name: Download issue counts
-        uses: actions/download-artifact@v3
-        with:
-          name: issue_counts
-
+      - name: Set Columns Environment Variable
+        run: echo "columns=${{ env.COLUMNS }}" >> $GITHUB_ENV
       - name: Generate ASCII Table
-        id: generate_table
         shell: pwsh
-        env:
-          columns: ${{ env.COLUMNS }}
         run: |
           $issueCounts = Get-Content issue_counts.json
           if (-not $issueCounts) {
@@ -195,7 +186,7 @@ jobs:
             exit 1
           }
           $issueCounts = $issueCounts | ConvertFrom-Json
-
+      
           # Collect all assignees
           $assignees = @{}
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
@@ -206,51 +197,41 @@ jobs:
               $assignees[$assignee][$column] = $issueCounts.$column.$assignee
             }
           }
-
+      
           # Define the column names and fixed widths
           $columns = $env:columns -split ", "
-          $cellWidth = 15  # Fixed width for each column
-
-          # Center the text within each cell
-          function CenterText($text, $width) {
-            $padding = [math]::Max(0, ($width - $text.Length) / 2)
-            return " " * [math]::Floor($padding) + $text + " " * [math]::Ceiling($padding)
-          }
-
+          $columnWidths = @(16, 16, 16, 16)  # Fixed widths for each column
+      
           # Generate the table header with centered text
           $header = "|"
-          foreach ($column in $columns) {
-            $header += " " + (CenterText $column $cellWidth) + " |"
+          for ($i = 0; $i -lt $columns.Count; $i++) {
+            $colText = $columns[$i].PadRight($columnWidths[$i] - 2)  # Leave space for padding
+            $header += " $colText |"
           }
-
+      
           # Define the separator with exact dash counts for each column
           $separator = "|"
-          foreach ($column in $columns) {
-            $separator += " " + ("-" * ($cellWidth - 2)) + " |"
+          foreach ($width in $columnWidths) {
+            $separator += " " + ("-" * ($width - 2)) + " |"  # Adjusting for padding
           }
-
+      
           # Construct the full table
           $table = "$header`n$separator`n"
-
+      
           # Generate the table rows
           foreach ($assignee in $assignees.Keys) {
             $row = "|"
             foreach ($column in $columns) {
               $count = if ($assignees[$assignee].ContainsKey($column)) { "${assignee}: $($assignees[$assignee][$column])" } else { "${assignee}: 0" }
-              $row += " " + (CenterText $count $cellWidth) + " |"
+              $row += " " + $count.PadRight($columnWidths[0] - 2) + " |"  # Adjusting for padding
             }
             $table += "$row`n"
           }
-
+      
           Write-Host "ASCII Table:`n$table"
           $table | Out-File ascii_table.txt
           echo "::set-output name=ascii_table::$table"
-
-      - name: Upload ASCII Table
-        uses: actions/upload-artifact@v3
-        with:
-          name: ascii_table
-          path: ascii_table.txt
+  
 
   send-to-slack:
     name: Send Report to Slack
