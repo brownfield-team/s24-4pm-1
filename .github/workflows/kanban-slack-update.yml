@@ -323,7 +323,7 @@ jobs:
           $header = "|"
           for ($i = 0; $i -lt $columns.Count; $i++) {
             $adjustment = if ($i -eq 1) { -1 } else { 0 }  # Adjust for "In Progress" column
-            $colText = CenterText $columns[$i] ($columnWidths[$i] - 2), $adjustment  # Leave space for padding
+            $colText = CenterText $columns[$i] ($columnWidths[$i] - 2) $adjustment  # Leave space for padding
             $header += " $colText |"
           }
 
