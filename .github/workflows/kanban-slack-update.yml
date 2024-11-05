@@ -321,7 +321,7 @@ jobs:
           # Generate the table header with centered text
           $header = "|"
           $header += " " + CenterText "Todo" 18 + " |"
-          $header += " " + CenterText "In Progress" 16 + " |"
+          $header += " " + CenterText "In Progress" 16 + "|"
           $header += " " + CenterText "In Review" 18 + " |"
           $header += " " + CenterText "Done" 18 + " |"
 
