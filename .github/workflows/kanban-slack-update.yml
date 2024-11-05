@@ -13,7 +13,7 @@ name: Kanban Slack Update
 
 on:
   schedule:
-    - cron: "0 9 * * *"  # Run at 9:00 AM every day
+    - cron: "0 17 * * *"  # Run at 9:00 AM PST / 5:00 PM UTC
   workflow_dispatch:  # Allows manual triggering
 
 env:
@@ -321,7 +321,7 @@ jobs:
           # Generate the table header with centered text
           $header = "|"
           $header += " " + CenterText "Todo" 18 + " |"
-          $header += " " + CenterText "In Progress" 18 - 1 + " |"
+          $header += " " + CenterText "In Progress" 16 + " |"
           $header += " " + CenterText "In Review" 18 + " |"
           $header += " " + CenterText "Done" 18 + " |"
 
