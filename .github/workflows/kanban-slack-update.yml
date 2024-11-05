@@ -296,7 +296,7 @@ jobs:
           $issueCounts = $issueCounts | ConvertFrom-Json
 
           # Collect all assignees
-          $assignees = @{} 
+          $assignees = @{}
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
             foreach ($assignee in $issueCounts.$column.PSObject.Properties.Name) {
               if (-not $assignees.ContainsKey($assignee)) {
@@ -312,6 +312,7 @@ jobs:
 
           # Center the text within each cell with manual adjustments
           function CenterText($text, $width, $adjustment = 0) {
+            $text = [string]$text  # Ensure $text is treated as a string
             $padding = [math]::Max(0, ($width - $text.Length + $adjustment) / 2)
             $leftPadding = " " * [math]::Floor($padding)
             $rightPadding = " " * [math]::Ceiling($padding)
