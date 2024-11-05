@@ -324,7 +324,7 @@ jobs:
           $header += " " + (CenterText "Todo" 18) + " |"
           $header += " " + (CenterText "In Progress" 18) + "|"  # Adjusted width for "In Progress"
           $header += " " + (CenterText "In Review" 18) + "  |"
-          $header += " " + (CenterText "Done" 18) + "|"
+          $header += " " + (CenterText "Done" 18) + " |"
 
           # Define the separator with exact dash counts for each column
           $separator = "|"
