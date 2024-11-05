@@ -316,7 +316,9 @@ jobs:
           # Center the text within each cell
           function CenterText($text, $width) {
             $padding = [math]::Max(0, ($width - $text.Length) / 2)
-            return " " * [math]::Floor($padding) + $text + " " * [math]::Ceiling($padding)
+            $leftPadding = " " * [math]::Floor($padding)
+            $rightPadding = " " * [math]::Ceiling($padding)
+            return $leftPadding + $text + $rightPadding
           }
 
           # Generate the table header with centered text
