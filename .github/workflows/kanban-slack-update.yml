@@ -45,7 +45,6 @@ jobs:
             echo "Current date is before $end_date. Continuing workflow."
             echo "::set-output name=continue::true"
           fi
-
   # This job extracts the team name from the repository name
   # The team name is used to find the project ID for the team
   # It does this by extracting the last 9 characters of the repository name
@@ -64,7 +63,6 @@ jobs:
           REPO=${{ github.repository }}
           TEAM_NAME="${REPO: -9}"
           echo "::set-output name=team::${TEAM_NAME}"
-
   # This job finds the project ID for the team based on the team name
   # It finds the last updated project that contains the team name in the title
   # Then sets the project ID as an output for the next job
@@ -197,7 +195,6 @@ jobs:
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
           Write-Host $response.Content
           echo "::set-output name=project_data::$($response.Content)"
-
   count_issues:
     name: Count Issues by Column and Assignee
     runs-on: ubuntu-latest
@@ -299,11 +296,11 @@ jobs:
           $issueCounts = $issueCounts | ConvertFrom-Json
 
           # Collect all assignees
-          $assignees = @{}
+          $assignees = @{} 
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
             foreach ($assignee in $issueCounts.$column.PSObject.Properties.Name) {
               if (-not $assignees.ContainsKey($assignee)) {
-                $assignees[$assignee] = @{}
+                $assignees[$assignee] = @{} 
               }
               $assignees[$assignee][$column] = $issueCounts.$column.$assignee
             }
@@ -313,9 +310,9 @@ jobs:
           $columns = $env:columns -split ", "
           $columnWidths = @(20, 20, 20, 20)  # Fixed widths for each column
 
-          # Center the text within each cell
-          function CenterText($text, $width) {
-            $padding = [math]::Max(0, ($width - $text.Length) / 2)
+          # Center the text within each cell with manual adjustments
+          function CenterText($text, $width, $adjustment = 0) {
+            $padding = [math]::Max(0, ($width - $text.Length + $adjustment) / 2)
             $leftPadding = " " * [math]::Floor($padding)
             $rightPadding = " " * [math]::Ceiling($padding)
             return $leftPadding + $text + $rightPadding
@@ -324,7 +321,8 @@ jobs:
           # Generate the table header with centered text
           $header = "|"
           for ($i = 0; $i -lt $columns.Count; $i++) {
-            $colText = CenterText $columns[$i] ($columnWidths[$i] - 2)  # Leave space for padding
+            $adjustment = if ($i -eq 1) { -1 } else { 0 }  # Adjust for "In Progress" column
+            $colText = CenterText $columns[$i] ($columnWidths[$i] - 2), $adjustment  # Leave space for padding
             $header += " $colText |"
           }
 
@@ -347,11 +345,9 @@ jobs:
             }
             $table += "$row`n"
           }
-
           Write-Host "ASCII Table:`n$table"
           $table | Out-File ascii_table.txt
           echo "::set-output name=ascii_table::$table"
-
       - name: Upload ASCII Table
         uses: actions/upload-artifact@v3
         with:
