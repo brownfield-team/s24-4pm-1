@@ -336,7 +336,7 @@ jobs:
           }
             
           # Add the unassigned row
-          $unassignedRow = "| " + (LeftAlignText "UNASSIGNED" 17) + " |"
+          $unassignedRow = "| " + (LeftAlignText "UNASSIGNED" 16) + " |"
           foreach ($column in $columns) {
             $unassignedCount = $unassignedCounts[$column]
             $leftAlignedUnassignedCount = LeftAlignText $unassignedCount 4
