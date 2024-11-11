@@ -356,7 +356,7 @@ jobs:
   send-to-slack:
     name: Send Report to Slack
     runs-on: ubuntu-latest
-    needs: [generate-ascii-table, get-team-name]
+    needs: [generate_ascii_table, get-team-name]
     if: needs.check-date.outputs.continue == 'true'
     steps:
       - name: Download ASCII Table
