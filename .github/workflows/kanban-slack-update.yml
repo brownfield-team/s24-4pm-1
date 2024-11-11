@@ -27,7 +27,7 @@ env:
 jobs:
 
   # This job checks if the current date is before the END_DATE
-  check-date:
+  check_date:
     name: Check Date
     runs-on: ubuntu-latest
     outputs:
@@ -44,16 +44,15 @@ jobs:
           else
             echo "Current date is before $end_date. Continuing workflow."
             echo "::set-output name=continue::true"
-          fi
-  # This job extracts the team name from the repository name
+# This job extracts the team name from the repository name
   # The team name is used to find the project ID for the team
-  # It does this by extracting the last 9 characters of the repository name
+  # It does this by extracting the last 6 characters of the repository name
   # Then sets the team name as an output for the next job
-  get-team-name:
+  get_team_name:
     name: Get Team Name 
     runs-on: ubuntu-latest
-    needs: check-date
-    if: needs.check-date.outputs.continue == 'true'
+    needs: check_date
+    if: needs.check_date.outputs.continue == 'true'
     outputs:
       team: ${{ steps.find_team.outputs.team }}
     steps:
@@ -61,26 +60,36 @@ jobs:
         id: find_team
         run: |
           REPO=${{ github.repository }}
-          TEAM_NAME="${REPO: -9}"
-          echo "::set-output name=team::${TEAM_NAME}"
+          TEAM_NAME="${REPO: -6}"
+          echo "team=${TEAM_NAME}" >> "$GITHUB_OUTPUT"
+          
   # This job finds the project ID for the team based on the team name
   # It finds the last updated project that contains the team name in the title
   # Then sets the project ID as an output for the next job
-  get-project-id:
+  get_project_id:
     name: Find Last Updated Project ID for Team
     runs-on: ubuntu-latest
-    needs: get-team-name
-    if: needs.check-date.outputs.continue == 'true'
+    needs: get_team_name
+    if: needs.check_date.outputs.continue == 'true'
     outputs:
       project_id: ${{ steps.find_project.outputs.project_id }}
+      project_data: ${{ steps.output_query.outputs.project_data }}
+      issue_counts: ${{ steps.count_issues.outputs.issue_counts }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Debugging Output
+        run: |
+          echo "needs.get_team_name.outputs.team=${{needs.get_team_name.outputs.team}}"
+          echo "github.repository_owner=${{ github.repository_owner }}"
       - name: Fetch Project ID
         id: find_project
         shell: pwsh
         run: |
           $query = @"
           {
-            organization(login: "${{ env.ORG_NAME }}") {
+            organization(login: "${{ github.repository_owner }}") {
               projectsV2(first: 100) {
                 nodes {
                   id
@@ -99,42 +108,29 @@ jobs:
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
           Write-Host "Projects JSON Output: $($response.Content)"
           
-          $projectID = ($response.Content | ConvertFrom-Json).data.organization.projectsV2.nodes | Where-Object { $_.title -like "*${{ needs.get-team-name.outputs.team }}*" } | Select-Object -First 1 -ExpandProperty id
+          $projectID = ($response.Content | ConvertFrom-Json).data.organization.projectsV2.nodes | Where-Object { $_.title -like "*${{ needs.get_team_name.outputs.team }}*" } | Select-Object -First 1 -ExpandProperty id
           
           if (-not $projectID) {
-              Write-Host "No project found for team ${{ needs.get-team-name.outputs.team }}."
+              Write-Host "No project found for team ${{ needs.get_team_name.outputs.team }}."
               exit 1
           }
           
           Write-Host "Found Project ID: $projectID"
-          echo "::set-output name=project_id::$projectID"
-  # This job fetches the project data using the project ID
-  # It does this by querying the GraphQL API for the project data
-  # Then sets the project data as an output for the next job
-  get-project-data:
-    name: Output GraphQL Query Result
-    runs-on: ubuntu-latest
-    needs: get-project-id
-    if: needs.check-date.outputs.continue == 'true'
-    outputs:
-      project_data: ${{ steps.output_query.outputs.project_data }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'
-
+          echo "project_id=$projectID"
+          echo $projectID >> project_id.txt
+          ls project_id.txt
+          cat project_id.txt
+          pwd
+       
       - name: Output GraphQL Query Result
         id: output_query
         shell: pwsh
         env:
-          project_id: ${{ needs.get-project-id.outputs.project_id }}
           PAT: ${{ secrets.PAT }}
+          PROJECT_ID: ${{ steps.get_project_id_from_file.outputs.project_id }}
         run: |
-          $PROJECT_ID = $env:project_id
+          dir
+          $PROJECT_ID = ( Get-Content -Path project_id.txt )
           $TOKEN = $env:PAT
           $query = @"
           {
@@ -194,32 +190,19 @@ jobs:
           $body = @{ query = $query } | ConvertTo-Json
           $response = Invoke-WebRequest -Uri "https://api.github.com/graphql" -Method Post -Headers $headers -Body $body
           Write-Host $response.Content
-          echo "::set-output name=project_data::$($response.Content)"
-  count_issues:
-    name: Count Issues by Column and Assignee
-    runs-on: ubuntu-latest
-    needs: get-project-data
-    if: needs.check-date.outputs.continue == 'true'
-    outputs:
-      issue_counts: ${{ steps.count_issues.outputs.issue_counts }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'
+          echo "project_data=$($response.Content)" >> $GITHUB_OUTPUT
+          echo "$($response.Content)" >> project_data.json
+          ls project_data.json
+          cat project_data.json
 
       - name: Count Issues by Column and Assignee
         id: count_issues
         shell: pwsh
         env:
-          project_data: ${{ needs.get-project-data.outputs.project_data }}
+          project_data: ${{ needs.get_project_id.outputs.project_data }}
           columns: ${{ env.COLUMNS }}
         run: |
-          Write-Host "Starting issue count process"
-          $data = $env:project_data | ConvertFrom-Json
+          $data = ( Get-Content -Path project_data.json ) | ConvertFrom-Json
           Write-Host "Project Data JSON: $($data | ConvertTo-Json -Depth 10)"
           $issueCounts = @{}
           $columns = $env:columns -split ", "
@@ -256,13 +239,15 @@ jobs:
           $issueCountsJson = $issueCounts | ConvertTo-Json -Depth 10
           Write-Host "Issue Counts JSON: $issueCountsJson"  # Debugging: Output the issue counts JSON
           $issueCountsJson | Out-File issue_counts.json
-          echo "::set-output name=issue_counts::$issueCountsJson"
+          echo "issue_counts=${issueCountsJson}" >> $GITHUB_OUTPUT
           Write-Host "Issue count process completed"
       - name: Upload issue counts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: issue_counts
           path: issue_counts.json
+          overwrite: true
+
 
 
   # This job generates an ASCII table from the issue counts
@@ -272,7 +257,7 @@ jobs:
   generate_ascii_table:
     name: Generate ASCII Table
     runs-on: ubuntu-latest
-    needs: count_issues
+    needs: get_project_id
     if: needs.check_date.outputs.continue == 'true'
     outputs:
       ascii_table: ${{ steps.generate_table.outputs.ascii_table }}
@@ -353,14 +338,15 @@ jobs:
           path: ascii_table.txt
           overwrite: true
 
+
   send-to-slack:
     name: Send Report to Slack
     runs-on: ubuntu-latest
-    needs: [generate_ascii_table, get-team-name]
-    if: needs.check-date.outputs.continue == 'true'
+    needs: [generate_ascii_table, get_team_name]
+    if: needs.check_date.outputs.continue == 'true'
     steps:
       - name: Download ASCII Table
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ascii_table
 
@@ -381,10 +367,11 @@ jobs:
       #The ASCII table content is also printed for debugging purposes
       - name: Debug Environment Variables
         run: |
+          echo "access_token=${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}"
           echo "TEAM_TO_CHANNEL: ${{ env.TEAM_TO_CHANNEL }}"
           echo "TEAM: ${{ env.TEAM }}"
           echo "ORG_NAME: ${{ env.ORG_NAME }}"
-          echo "Slack Channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}"
+          echo "Slack Channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get_team_name.outputs.team] }}"
           echo "ASCII Table:"
           cat ascii_table_content.txt
       #This step is used to debug the Slack text that will be sent to the Slack channel
@@ -396,10 +383,10 @@ jobs:
           printf '```\n%s\n```\n' "$table"
       #This step sends the report to the Slack channel associated with the team
       - name: Send Report to Slack
-        uses: archive/github-actions-slack@v2.0.0
+        uses: archive/github-actions-slack@v2.9.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get-team-name.outputs.team] }}
+          slack-channel: ${{ fromJSON(env.TEAM_TO_CHANNEL)[needs.get_team_name.outputs.team] }}
           slack-text: |
             📋 *Kanban Board Status* ✔️
             ```
