@@ -282,13 +282,19 @@ jobs:
           $issueCounts = $issueCounts | ConvertFrom-Json
 
           # Collect all assignees
-          $assignees = @{ }
+          $assignees = @{}
+          $unassignedCounts = @{}
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
+            $unassignedCounts[$column] = 0
             foreach ($assignee in $issueCounts.$column.PSObject.Properties.Name) {
-              if (-not $assignees.ContainsKey($assignee)) {
-                $assignees[$assignee] = @{ }
+              if ($assignee -eq "UNASSIGNED") {
+                $unassignedCounts[$column] += $issueCounts.$column.$assignee
+              } else {
+                if (-not $assignees.ContainsKey($assignee)) {
+                  $assignees[$assignee] = @{}
+                }
+                $assignees[$assignee][$column] = $issueCounts.$column.$assignee
               }
-              $assignees[$assignee][$column] = $issueCounts.$column.$assignee
             }
           }
 
@@ -328,6 +334,15 @@ jobs:
             }
             $table += "$row`n"
           }
+            
+          # Add the unassigned row
+          $unassignedRow = "| " + (LeftAlignText "UNASSIGNED" 17) + " |"
+          foreach ($column in $columns) {
+            $unassignedCount = $unassignedCounts[$column]
+            $leftAlignedUnassignedCount = LeftAlignText $unassignedCount 4
+            $unassignedRow += " $leftAlignedUnassignedCount |"
+          }
+          $table += "$unassignedRow`n"
 
           Write-Host "ASCII Table:`n$table"
           $table | Out-File ascii_table.txt
