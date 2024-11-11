@@ -61,7 +61,7 @@ jobs:
         id: find_team
         run: |
           REPO=${{ github.repository }}
-          TEAM_NAME="${REPO: -6}"
+          TEAM_NAME="${REPO: -9}"
           echo "team=${TEAM_NAME}" >> "$GITHUB_OUTPUT"
           
   # This job finds the project ID for the team based on the team name
