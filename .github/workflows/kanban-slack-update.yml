@@ -216,6 +216,9 @@ jobs:
               Write-Host "Processing column: $column"
               if ($null -ne $column) {
                 $assignees = $item.content.assignees.nodes | Select-Object -ExpandProperty login
+                if ($assignees.Count -eq 0) {
+                  $assignees = @("UNASSIGNED")
+                }
                 foreach ($assignee in $assignees) {
                   Write-Host "Processing assignee: $assignee"
                   if (-not $issueCounts.ContainsKey($column)) {
@@ -281,7 +284,7 @@ jobs:
           }
           $issueCounts = $issueCounts | ConvertFrom-Json
 
-          # Collect all assignees
+          # Collect all assignees and track unassigned issues
           $assignees = @{}
           $unassignedCounts = @{}
           foreach ($column in $issueCounts.PSObject.Properties.Name) {
@@ -300,7 +303,105 @@ jobs:
 
           # Define the column names and fixed widths
           $columns = $env:columns -split ", "
-          $columnWidths = @(18, 3, 3, 3, 3)  # Fixed widths for each column
+                    generate-ascii-table:
+            name: Generate ASCII Table
+            runs-on: ubuntu-latest
+            needs: count_issues
+            if: needs.check-date.outputs.continue == 'true'
+            outputs:
+              ascii_table: ${{ steps.generate_table.outputs.ascii_table }}
+            steps:
+              - name: Download issue counts
+                uses: actions/download-artifact@v4
+                with:
+                  name: issue_counts
+          
+              - name: Generate ASCII Table
+                id: generate_table
+                shell: pwsh
+                env:
+                  columns: ${{ env.COLUMNS }}
+                run: |
+                  $issueCounts = Get-Content issue_counts.json
+                  if (-not $issueCounts) {
+                    Write-Host "ISSUE_COUNTS is empty or not set"
+                    exit 1
+                  }
+                  $issueCounts = $issueCounts | ConvertFrom-Json
+          
+                  # Collect all assignees and track unassigned issues
+                  $assignees = @{}
+                  $unassignedCounts = @{}
+                  foreach ($column in $issueCounts.PSObject.Properties.Name) {
+                    $unassignedCounts[$column] = 0
+                    foreach ($assignee in $issueCounts.$column.PSObject.Properties.Name) {
+                      if ($assignee -eq "UNASSIGNED") {
+                        $unassignedCounts[$column] += $issueCounts.$column.$assignee
+                      } else {
+                        if (-not $assignees.ContainsKey($assignee)) {
+                          $assignees[$assignee] = @{}
+                        }
+                        $assignees[$assignee][$column] = $issueCounts.$column.$assignee
+                      }
+                    }
+                  }
+          
+                  # Define the column names and fixed widths
+                  $columns = $env:columns -split ", "
+                  $columnWidths = @(18, 3, 3, 3, 3)  # Fixed widths for each column
+          
+                  # Left align the text within each cell
+                  function LeftAlignText($text, $width) {
+                    $text = [string]$text  # Ensure $text is treated as a string
+                    $padding = " " * [math]::Max(0, $width - $text.Length)
+                    return $text + $padding
+                  }
+          
+                  # Generate the table header with left-aligned text
+                  $header = "|"
+                  $header += " " + (LeftAlignText $columns[0] 18) + " |"
+                  $header += " " + (LeftAlignText $columns[1] 3) + " |"  # Adjusted width for "In Progress"
+                  $header += " " + (LeftAlignText $columns[2] 3) + " |"
+                  $header += " " + (LeftAlignText $columns[3] 3) + " |"
+          
+                  # Define the separator with exact dash counts for each column
+                  $separator = "|"
+                  foreach ($width in $columnWidths) {
+                    $separator += " " + ("-" * ($width - 2)) + " |"  # Adjusting for padding
+                  }
+          
+                  # Construct the full table
+                  $table = "$header`n$separator`n"
+          
+                  # Generate the table rows
+                  foreach ($assignee in $assignees.Keys) {
+                    $row = "| " + (LeftAlignText $assignee 17) + " |"
+                    foreach ($column in $columns) {
+                      $count = if ($assignees[$assignee].ContainsKey($column)) { "$($assignees[$assignee][$column])" } else { "0" }
+                      $leftAlignedCount = printf "%-4s" $count
+                      $row += " $leftAlignedCount |"
+                    }
+                    $table += "$row`n"
+                  }
+          
+                  # Add the unassigned row
+                  $unassignedRow = "| " + (LeftAlignText "UNASSIGNED" 17) + " |"
+                  foreach ($column in $columns) {
+                    $unassignedCount = $unassignedCounts[$column]
+                    $leftAlignedUnassignedCount = printf "%-4s" $unassignedCount
+                    $unassignedRow += " $leftAlignedUnassignedCount |"
+                  }
+                  $table += "$unassignedRow`n"
+          
+                  Write-Host "ASCII Table:`n$table"
+                  $table | Out-File ascii_table.txt
+                  echo "::set-output name=ascii_table::$table"
+          
+              - name: Upload ASCII Table
+                uses: actions/upload-artifact@v3
+                with:
+                  name: ascii_table
+                  path: ascii_table.txt
 
           # Left align the text within each cell with manual adjustments
           function LeftAlignText($text, $width) {
